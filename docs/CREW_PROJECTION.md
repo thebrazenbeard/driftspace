@@ -38,8 +38,38 @@ python -O -m unittest discover -s tests -q
 This is **not** a working AI crew or an exposed HTTP endpoint. The separate
 REALM engine must authenticate the player, reserve NPC identities against
 player credential provisioning, validate actions, and mount any future route.
-The private candidate tested against historical REALM source on Lappy; that
-is not evidence of integration with current REALM main or its held draft PR.
+The historical Lappy private candidate is separate from this branch. This
+branch's current REALM `main` smoke evidence appears below; held draft PR #180
+and a deployed host remain unqualified.
+
+## Opt-in host admission candidate
+
+`driftspace/host_admission.py` binds the validated private roster to an
+existing REALM `Gateway` and exact world identity. In this *host-only adapter*,
+only the bound human captain can receive or rotate a crew credential, while
+an already-provisioned AI crew identity causes the adapter to fail closed.
+The private actor ID is never included in its public crew response; the result
+uses `player_handle: Rylok` rather than mislabeling the handle as an Engine
+`player_id`.
+
+Using a **separate trusted REALM checkout**, run the integration proof:
+
+```sh
+python tools/verify_realm_crew_auth.py --realm-src /absolute/path/to/REALM/src
+python -O tools/verify_realm_crew_auth.py --realm-src /absolute/path/to/REALM/src
+```
+
+This generates synthetic actor IDs and credentials inside disposable SQLite,
+starts temporary loopback-only HTTP listeners on OS-selected ports, and tests
+real bearer authentication, forged NPC claims, world separation, rotation,
+revocation and public-view redaction. It also deliberately proves the
+**remaining bypass**: generic REALM's privileged credential provisioner can
+mint an AI-name bearer token outside the adapter, and its unmodified gateway
+will accept that bearer. A passing probe is **not** a deployment approval.
+This source-only adapter is not installed as a REALM CLI/HTTP provisioning
+policy, not transactional with the game writer, and not qualified against
+REALM's held PR #180. Future integration must prevent out-of-band issuance and
+model control of human Rylok in the authoritative host.
 
 ## Importable synthetic station
 
