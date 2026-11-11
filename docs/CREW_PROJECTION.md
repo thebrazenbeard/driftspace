@@ -37,6 +37,25 @@ player credential provisioning, validate actions, and mount any future route.
 The private candidate tested against historical REALM source on Lappy; that
 is not evidence of integration with current REALM main or its held draft PR.
 
+## Importable synthetic station
+
+`examples/driftspace-synthetic-demo.worldpack.v1.json` is a deliberately
+non-canonical, four-room/two-item REALM v1 worldpack. It contains no protected
+character records, mission spoilers, prompts, or live-world credentials.
+
+Its four structural tests run with the same `unittest discover` command above.
+For a **separately supplied and trusted** REALM source checkout, run:
+
+```sh
+python tools/verify_realm_worldpack.py --realm-src /absolute/path/to/REALM/src
+```
+
+This creates a disposable SQLite database, imports the synthetic worldpack,
+joins a synthetic human, and exercises actual `look`, movement, `take`, and
+`inventory` actions. It does not operate a listener or touch a played world.
+Lappy's held historical REALM PR172 source passed this smoke test on
+2026-11-11, but the current engine and a live deployment are still unverified.
+
 ## Remaining gates before integration
 
 1. Host admission and source-rights review of the private roster.
