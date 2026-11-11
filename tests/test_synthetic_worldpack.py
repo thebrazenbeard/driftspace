@@ -48,6 +48,14 @@ class SyntheticWorldpackTests(unittest.TestCase):
         for forbidden in ("model_binding", "wreckforge", "zyrik", "tessari", "crew_prompt", "https://", "sqlite", "private_source"):
             self.assertNotIn(forbidden, text)
 
+    def test_descriptions_are_scenes_not_placeholder_status_notes(self):
+        bad = ("for testing", "test stalls", "not an approved", "integration exercise", "simulated repairs")
+        for room in self.pack["rooms"]:
+            with self.subTest(room=room["id"]):
+                desc = room["description"]
+                self.assertGreaterEqual(len(desc), 200)
+                self.assertTrue(all(phrase not in desc.lower() for phrase in bad))
+
 
 if __name__ == "__main__":
     unittest.main()
