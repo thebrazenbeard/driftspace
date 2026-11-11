@@ -93,6 +93,66 @@ class TerminalPresentationTests(unittest.TestCase):
         self.assertIn("\x1b[37mExits:\x1b[0m \x1b[1;33msouth\x1b[0m", rendered)
         self.assertEqual(text, render_terminal(text, ansi=False))
 
+    def test_material_cues_color_objects_not_just_color_words(self):
+        scene = (
+            "Service Bay\n"
+            "A wooden table leans beside a steel table. A bare table stands nearby. "
+            "A table of steel holds a crate made of oak.\n"
+            "Exits: south\n"
+            "You say: wooden table steel table"
+        )
+        output = render_terminal(scene)
+        self.assertIn("\x1b[38;2;159;103;58mwooden table\x1b[0m", output)
+        self.assertIn("\x1b[38;2;157;173;185msteel table\x1b[0m", output)
+        self.assertIn("\x1b[38;2;157;173;185mtable of steel\x1b[0m", output)
+        self.assertIn("\x1b[38;2;159;103;58mcrate made of oak\x1b[0m", output)
+        self.assertIn("A bare table stands nearby.", output)
+        self.assertNotIn("\x1b[38;2;159;103;58mbare table", output)
+        self.assertIn("\x1b[1;35mwooden table steel table\x1b[0m", output)
+
+    def test_lighting_brightness_changes_visual_color(self):
+        scene = (
+            "Viewing Gallery\n"
+            "Faint floor lights mark the way; dim lamps twitch in the ceiling. "
+            "Bright overhead lights burn above a brilliant white beacon. "
+            "A lamp is off, and the table nearby has no specified material.\n"
+            "Exits: north"
+        )
+        output = render_terminal(scene)
+        self.assertIn("\x1b[38;2;154;129;54mFaint floor lights\x1b[0m", output)
+        self.assertIn("\x1b[38;2;154;129;54mdim lamps\x1b[0m", output)
+        self.assertIn("\x1b[38;2;255;248;215mBright overhead lights\x1b[0m", output)
+        self.assertIn("\x1b[38;2;255;248;215mbrilliant white beacon\x1b[0m", output)
+        self.assertIn("A lamp is off", output)
+        self.assertNotIn("\x1b[38;2;154;129;54mlamp", output)
+
+    def test_ambiguous_material_and_brightness_are_not_asserted_as_facts(self):
+        text = (
+            "Exchange Hall\n"
+            "A wooden or steel table is rumored to be inside. "
+            "Its lamps might be dim or bright lights, depending on the shift.\n"
+            "Exits: west"
+        )
+        shown = render_terminal(text)
+        self.assertNotIn("\x1b[38;2;157;173;185msteel table", shown)
+        self.assertNotIn("\x1b[38;2;255;248;215mbright lights", shown)
+        self.assertIn("wooden or steel table", shown)
+        self.assertIn("dim or bright lights", shown)
+
+    def test_real_fixture_has_semantic_highlights(self):
+        import json
+        fixture = ROOT / "examples" / "driftspace-synthetic-demo.worldpack.v1.json"
+        rooms = json.loads(fixture.read_text(encoding="utf-8"))["rooms"]
+        by_id = {room["id"]: room for room in rooms}
+        service = by_id["service_bay"]
+        gallery = by_id["viewing_gallery"]
+        service_render = render_terminal(service["name"] + "\n" + service["description"] + "\nExits: south")
+        gallery_render = render_terminal(gallery["name"] + "\n" + gallery["description"] + "\nExits: north")
+        self.assertIn("\x1b[38;2;157;173;185msteel edge\x1b[0m", service_render)
+        self.assertIn("\x1b[38;2;154;129;54mFaint floor lights\x1b[0m", gallery_render)
+        self.assertIn("\x1b[37mExits:\x1b[0m \x1b[1;33mnorth\x1b[0m", gallery_render)
+        self.assertNotIn("\x1b[38;2;154;129;54mnorth", gallery_render)
+
     def test_palette_preview_shows_color_swatches_and_resets(self):
         preview = terminal_palette()
         self.assertIn("Classic:", preview)
@@ -103,6 +163,8 @@ class TerminalPresentationTests(unittest.TestCase):
         self.assertIn("\x1b[38;2;144;144;144mdark grey\x1b[0m", preview)
         self.assertIn("\x1b[30;47mblack\x1b[0m", preview)
         self.assertIn("room descriptions", preview)
+        self.assertIn("material cues", preview)
+        self.assertIn("lighting intensity", preview)
         self.assertIn("palette", MUD_HELP)
 
     def test_no_ansi_fallback_and_useful_help(self):
