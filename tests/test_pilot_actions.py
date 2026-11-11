@@ -72,6 +72,13 @@ class PilotCommandTests(unittest.TestCase):
         for command in ("get", "pickup", "obtain", "examine", "inspect", "map"):
             self.assertIn(command, MUD_HELP)
 
+    def test_no_database_is_created_by_read_only_inspection(self):
+        vanished = Path(self.temp.name) / "does-not-exist.sqlite3"
+        self.assertFalse(vanished.exists())
+        result = interpret_pilot_command("examine badge", vanished, "Rylok")
+        self.assertIn("not visible", result.response.lower())
+        self.assertFalse(vanished.exists())
+
     def test_map_and_original_commands(self):
         self.assertEqual("/api/v1/map",self.resolve("map").resource)
         self.assertIsNone(self.resolve("say hello"))
