@@ -22,23 +22,90 @@ _SOCIAL = {
 # Explicit color words in non-canonical room prose, not player speech.
 # A black-on-light background keeps "black" visible on dark MUD themes.
 PROSE_COLORS = {
-    "copper": "38;2;184;115;51",
-    "amber": "38;2;255;191;0",
-    "black": "30;47",
-    "silver": "38;2;192;192;192",
-    "gold": "38;2;255;215;0",
+    # Classic ANSI family, tuned for readability on a dark MUD background.
+    "black": "30;47",                 # black on pale background
     "red": "38;2;255;105;97",
-    "blue": "38;2;100;160;255",
     "green": "38;2;90;200;130",
     "yellow": "38;2;255;225;80",
+    "blue": "38;2;100;160;255",
+    "magenta": "38;2;255;0;255",
+    "cyan": "38;2;0;255;255",
+    "white": "38;2;245;245;245",
+    "bright black": "38;2;144;144;144",
+    "bright red": "38;2;255;85;85",
+    "bright green": "38;2;120;255;140",
+    "bright yellow": "38;2;255;240;120",
+    "bright blue": "38;2;98;187;255",
+    "bright magenta": "38;2;255;125;255",
+    "bright cyan": "38;2;120;255;255",
+    "bright white": "38;2;255;255;255",
+    # Extended color words and UK/US spellings used in descriptive prose.
+    "copper": "38;2;184;115;51",
+    "amber": "38;2;255;191;0",
+    "silver": "38;2;192;192;192",
+    "gold": "38;2;255;215;0",
     "orange": "38;2;255;160;65",
     "purple": "38;2;187;134;252",
     "violet": "38;2;186;145;255",
+    "pink": "38;2;255;105;180",
+    "light pink": "38;2;255;182;193",
+    "dark pink": "38;2;225;100;150",
+    "teal": "38;2;0;180;170",
+    "turquoise": "38;2;64;224;208",
+    "aqua": "38;2;0;255;255",
+    "navy": "38;2;106;148;220",
+    "indigo": "38;2;140;118;238",
+    "lime": "38;2;170;255;90",
+    "olive": "38;2;175;177;90",
+    "brown": "38;2;173;112;70",
+    "crimson": "38;2;230;50;80",
+    "scarlet": "38;2;255;64;64",
+    "maroon": "38;2;185;95;116",
+    "cream": "38;2;245;232;190",
+    "beige": "38;2;226;208;175",
+    "slate": "38;2;150;165;180",
     "grey": "38;2;170;170;170",
     "gray": "38;2;170;170;170",
-    "white": "38;2;245;245;245",
+    "light grey": "38;2;211;211;211",
+    "light gray": "38;2;211;211;211",
+    "light-grey": "38;2;211;211;211",
+    "light-gray": "38;2;211;211;211",
+    "dark grey": "38;2;144;144;144",
+    "dark gray": "38;2;144;144;144",
+    "dark-grey": "38;2;144;144;144",
+    "dark-gray": "38;2;144;144;144",
+    "light blue": "38;2;150;205;255",
+    "light green": "38;2;144;238;144",
+    "light cyan": "38;2;165;243;252",
 }
-_PROSE_WORD = re.compile(r"\b(?:" + "|".join(PROSE_COLORS) + r")\b", re.IGNORECASE)
+# Longest phrases first: "light grey" must be a single semantic span.
+_PROSE_WORD = re.compile(
+    r"\b(?:" + "|".join(
+        re.escape(name) for name in sorted(PROSE_COLORS, key=len, reverse=True)
+    ) + r")\b",
+    re.IGNORECASE,
+)
+
+
+
+def terminal_palette() -> str:
+    """ANSI swatches suitable for Mudlet's text console."""
+    groups = (
+        ("Classic", ("black", "red", "green", "yellow", "blue", "magenta", "cyan", "white")),
+        ("Bright", ("bright black", "bright red", "bright green", "bright yellow",
+                    "bright blue", "bright magenta", "bright cyan", "bright white")),
+        ("Extended", ("pink", "light grey", "dark grey", "copper", "amber", "silver",
+                      "gold", "teal", "turquoise", "purple", "orange")),
+    )
+    output = ["Driftspace ANSI color palette"]
+    for title, names in groups:
+        samples = "   ".join(
+            "\x1b[" + PROSE_COLORS[name] + "m" + name + "\x1b[0m"
+            for name in names
+        )
+        output.append(title + ": " + samples)
+    output.append("These words are highlighted only in room descriptions.")
+    return "\n".join(output)
 
 
 def _color_room_prose(line: str) -> str:
@@ -53,7 +120,7 @@ MUD_HELP = (
     "Movement: north/south/east/west (n/s/e/w), look, where\n"
     "Items: take <item>, drop <item>, inventory\n"
     "Comms: say <text>, emote <action>, yell <text>, ooc <text>, crewchat <text>\n"
-    "Information: who, listen, history [1-50], socials, help, quit\n"
+    "Information: who, listen, history [1-50], socials, palette/colors, help, quit\n"
     "This is a synthetic private pilot. Socials are saved locally; AI crew"
     " and live multiplayer channel delivery are NOT online."
 )
