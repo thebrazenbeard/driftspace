@@ -18,6 +18,10 @@ The original Lappy source and its private Wreckforge roster were not moved.
   absent from the response.
 - The projection is a detached value; changing one returned crew list cannot
   mutate later responses.
+- Ordinary callers cannot construct a projection directly or rebind its
+  attributes after validated loading. These are misuse guards, **not** a
+  Python sandbox or proof of authenticated host custody. A caller executing
+  arbitrary Python in the same process can bypass language-level protections.
 
 No real private roster or private character ID appears in this repository.
 The test fixtures use synthetic actor IDs, and do not call a model or live game.
