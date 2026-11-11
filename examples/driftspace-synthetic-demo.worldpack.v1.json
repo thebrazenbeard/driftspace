@@ -1,0 +1,46 @@
+{
+  "schema": "realm.worldpack.v1",
+  "world_id": "driftspace-synthetic-demo",
+  "name": "Driftspace Synthetic Integration Demo (Not Canon)",
+  "start_room": "arrival_platform",
+  "rooms": [
+    {
+      "id": "arrival_platform",
+      "name": "Arrival Platform",
+      "description": "A temporary arrival deck for testing movement and inventory. This is not an approved story location.",
+      "exits": {"east": "exchange_hall"}
+    },
+    {
+      "id": "exchange_hall",
+      "name": "Exchange Hall",
+      "description": "Unstaffed test stalls surround a marked walkway. No trading system is active.",
+      "exits": {"west": "arrival_platform", "north": "service_bay", "south": "viewing_gallery"}
+    },
+    {
+      "id": "service_bay",
+      "name": "Service Bay",
+      "description": "Benches and lockers illustrate portable-object handling without simulated repairs.",
+      "exits": {"south": "exchange_hall"}
+    },
+    {
+      "id": "viewing_gallery",
+      "name": "Viewing Gallery",
+      "description": "A static screen displays a starfield used solely for this integration exercise.",
+      "exits": {"north": "exchange_hall"}
+    }
+  ],
+  "items": [
+    {
+      "id": "test_lamp",
+      "name": "Test Lamp",
+      "description": "A portable light for verifying take and inventory actions.",
+      "room": "service_bay"
+    },
+    {
+      "id": "test_badge",
+      "name": "Test Badge",
+      "description": "A blank badge with no authorization privileges.",
+      "room": "arrival_platform"
+    }
+  ]
+}
