@@ -30,5 +30,56 @@ REALM owns future host-bound discovery, world/account authorization, map visibil
 A production client must never directly read REALM SQLite or pass a claimed player name as evidence of identity.
 Do not promote the private preview to a public service or assume other worlds share its geometry.
 
-## Unanswered Quorum Bridge attack
-Should an adjacent room visible through a doorway appear by name on the map before Rylok enters it? Options might include name, silhouette, or unexplored exit only. This remains a design question, not a reviewer determination.
+## Accelerated Red-Team Review — determination
+
+Patrick delegated resolution of the Quorum's design questions rather than
+participating in an interactive defense. This is an **internal Quorum-method
+review**, not a separately executed independent reviewer.
+
+**Hypothesis:** An actor may learn a room before physically entering it, but
+its name may appear only when the authoritative game has recorded an
+observation that identifies that room for that actor.
+
+**Purist Logic — question and resolution:** Does line of sight imply the
+room's identity? No. Seeing inside a space can reveal geometry, occupants,
+light, or hazards without establishing its canonical name. An exit alone
+proves a navigable direction, not permission to reveal a database room ID.
+
+**Pragmatism — question and resolution:** Does withholding names until entry
+make exploration needlessly opaque? Sometimes. A posted sign, an authorized
+sensor scan, recognized landmarks, an explicit narrative reveal, or an
+approved shared chart may establish identity. Each needs host-validated
+evidence and its own privacy rule. A client guess is not one.
+
+**Bridge — question and resolution:** If an open doorway makes a room
+visually identifiable, should the map show it? **Yes, when the host has
+adjudicated that identification for Rylok**, even before entry. If only a
+passage is visible, show a known direction / unidentified room, never an
+invented name. A partial view could eventually use a silhouette marker.
+
+**Determination: REFINE** the visited-only discovery model, without changing
+the deployed pilot's disclosure behavior. A future host design should
+distinguish: visited (physically entered), observed (authorized view/report),
+identified (authorized evidence establishes the name), and unknown (only a
+passage/direction is known).
+
+These are proposed states, not an implemented REALM database schema.
+They must be scoped to the actor and world and derive from host-adjudicated
+observations rather than AI guesses, player text, politics or exit adjacency.
+
+**Current decision:** The four-room synthetic worldpack has no authoritative
+line-of-sight or identification events. Keep the live map conservative:
+visited names plus unexplored directions only. Do not treat prose about
+windows, doors or exits as an authorization to disclose a new room. This is
+a safe default, not a canon requirement to enter each room before learning
+its name.
+
+**Future falsifiers:** (1) Unvisited name leaked through a bare exit;
+(2) another actor's observations contaminate the current actor's map;
+(3) revoked or cross-world scanner output grants identification;
+(4) an authorized view of a posted room name fails to identify it;
+(5) client prose alone changes game-state discovery.
+
+The smallest useful host contract is a credential-bound discovery event with
+actor, world, room, method, evidence class, and time, plus a safe projection.
+REALM owns host adjudication; Driftspace controls setting-specific inputs.
