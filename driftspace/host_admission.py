@@ -34,6 +34,8 @@ class CrewHostAdmission:
 
         if not isinstance(gateway, Gateway) or gateway.world_id != world_id:
             raise ValueError("An exact-world REALM Gateway is required")
+        if getattr(gateway, "scoped_credentials", None) is not None:
+            raise ValueError("Scoped REALM credentials require separate admission qualification")
         projection = CrewProjection.load(
             roster_path, world_id=world_id,
             human_actor_id=human_actor_id, public_handles=public_handles,
