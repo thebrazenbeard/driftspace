@@ -19,6 +19,36 @@ _SOCIAL = {
     "ooc": "world",
     "crewchat": "crew",
 }
+# Explicit color words in non-canonical room prose, not player speech.
+# A black-on-light background keeps "black" visible on dark MUD themes.
+PROSE_COLORS = {
+    "copper": "38;2;184;115;51",
+    "amber": "38;2;255;191;0",
+    "black": "30;47",
+    "silver": "38;2;192;192;192",
+    "gold": "38;2;255;215;0",
+    "red": "38;2;255;105;97",
+    "blue": "38;2;100;160;255",
+    "green": "38;2;90;200;130",
+    "yellow": "38;2;255;225;80",
+    "orange": "38;2;255;160;65",
+    "purple": "38;2;187;134;252",
+    "violet": "38;2;186;145;255",
+    "grey": "38;2;170;170;170",
+    "gray": "38;2;170;170;170",
+    "white": "38;2;245;245;245",
+}
+_PROSE_WORD = re.compile(r"\b(?:" + "|".join(PROSE_COLORS) + r")\b", re.IGNORECASE)
+
+
+def _color_room_prose(line: str) -> str:
+    return _PROSE_WORD.sub(
+        lambda match: "\x1b[" + PROSE_COLORS[match.group(0).casefold()] +
+        "m" + match.group(0) + "\x1b[0m",
+        line,
+    )
+
+
 MUD_HELP = (
     "Movement: north/south/east/west (n/s/e/w), look, where\n"
     "Items: take <item>, drop <item>, inventory\n"
@@ -59,16 +89,42 @@ def render_terminal(text: str, *, ansi: bool = True) -> str:
         clean = _SGR.sub("", line)
         if clean in ROOMS:
             return "\x1b[1;36m" + clean + "\x1b[0m"
-        if clean.startswith("Exits:"):
-            return "\x1b[1;33m" + clean + "\x1b[0m"
-        if clean.startswith(("Items:", "You carry:", "You take", "You drop")):
-            return "\x1b[1;32m" + clean + "\x1b[0m"
+        # Labels remain neutral; only the values carry semantic color.
+        for label, value_color in (
+            ("Exits:", "1;33"),          # accessible directions: yellow
+            ("Items:", "1;32"),          # visible items: green
+            ("You carry:", "1;32"),      # held items: green
+            ("You take ", "1;32"),
+            ("You drop ", "1;32"),
+            ("You say:", "1;35"),        # messages: magenta
+            ("You yell:", "1;35"),
+            ("[OOC]", "1;35"),
+            ("[Wreckforge]", "1;35"),
+        ):
+            if clean.startswith(label):
+                value = clean[len(label):].strip()
+                colored_label = "\x1b[37m" + label.rstrip() + "\x1b[0m"
+                if not value:
+                    return colored_label
+                return colored_label + " \x1b[" + value_color + "m" + value + "\x1b[0m"
         if clean.startswith(("Unknown command", "Access denied", "Command rejected")):
             return "\x1b[1;31m" + clean + "\x1b[0m"
-        if clean.startswith(("You say:", "[OOC]", "[Wreckforge]", "You yell:")):
-            return "\x1b[1;35m" + clean + "\x1b[0m"
         return clean
-    return "\n".join(color(line) for line in text.split("\n"))
+    rendered = []
+    inside_description = False
+    for line in text.split("\n"):
+        clean = _SGR.sub("", line)
+        if clean in ROOMS:
+            inside_description = True
+            rendered.append(color(clean))
+        elif clean.startswith("Exits:"):
+            inside_description = False
+            rendered.append(color(clean))
+        elif inside_description:
+            rendered.append(_color_room_prose(clean))
+        else:
+            rendered.append(color(clean))
+    return "\n".join(rendered)
 
 
 def terminal_prompt() -> str:
