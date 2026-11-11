@@ -8,7 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from driftspace.terminal_ui import (
-    MUD_HELP, SocialStore, parse_social, render_terminal, terminal_prompt,
+    MUD_HELP, SocialStore, parse_social, render_terminal, terminal_prompt, terminal_palette,
 )
 
 
@@ -54,6 +54,56 @@ class TerminalPresentationTests(unittest.TestCase):
         self.assertIn("\x1b[37mExits:\x1b[0m \x1b[1;33mnorth, west\x1b[0m", out)
         self.assertIn("\x1b[37mItems:\x1b[0m \x1b[1;32mCopper token\x1b[0m", out)
         self.assertNotIn("\x1b[38;2;184;115;51mCopper token", out)
+
+    def test_extended_palette_and_multiword_grey_names(self):
+        scene = (
+            "Viewing Gallery\n"
+            "A cyan lamp glows over a pink ribbon and a light grey panel. "
+            "Dark gray rails frame a bright blue display; black glass reflects teal.\n"
+            "Exits: north\nItems: Pink Badge\nYou say: cyan pink"
+        )
+        rendered = render_terminal(scene)
+        for expected in (
+            "\x1b[38;2;0;255;255mcyan\x1b[0m",
+            "\x1b[38;2;255;105;180mpink\x1b[0m",
+            "\x1b[38;2;211;211;211mlight grey\x1b[0m",
+            "\x1b[38;2;144;144;144mDark gray\x1b[0m",
+            "\x1b[38;2;98;187;255mbright blue\x1b[0m",
+            "\x1b[30;47mblack\x1b[0m",
+            "\x1b[38;2;0;180;170mteal\x1b[0m",
+        ):
+            self.assertIn(expected, rendered)
+        self.assertIn("\x1b[1;32mPink Badge\x1b[0m", rendered)
+        self.assertIn("\x1b[1;35mcyan pink\x1b[0m", rendered)
+        self.assertNotIn("\x1b[38;2;255;105;180mPink Badge", rendered)
+
+    def test_american_british_and_hyphenated_aliases(self):
+        text = ("Exchange Hall\nA light gray panel and a light-grey pane face "
+                "dark grey and dark-gray bulkheads. Cyanide is uncolored.\nExits: west")
+        rendered = render_terminal(text)
+        self.assertEqual(2, rendered.count("\x1b[38;2;211;211;211m"))
+        self.assertEqual(2, rendered.count("\x1b[38;2;144;144;144m"))
+        self.assertIn("Cyanide", rendered)
+        self.assertNotIn("\x1b[38;2;0;255;255mCyan", rendered)
+
+    def test_color_word_spans_reset_before_normal_room_text(self):
+        text = "Service Bay\ncopper amber cyan pink light grey dark grey words.\nExits: south"
+        rendered = render_terminal(text)
+        self.assertIn("\x1b[38;2;255;105;180mpink\x1b[0m ", rendered)
+        self.assertIn("\x1b[37mExits:\x1b[0m \x1b[1;33msouth\x1b[0m", rendered)
+        self.assertEqual(text, render_terminal(text, ansi=False))
+
+    def test_palette_preview_shows_color_swatches_and_resets(self):
+        preview = terminal_palette()
+        self.assertIn("Classic:", preview)
+        self.assertIn("Extended:", preview)
+        self.assertIn("\x1b[38;2;0;255;255mcyan\x1b[0m", preview)
+        self.assertIn("\x1b[38;2;255;105;180mpink\x1b[0m", preview)
+        self.assertIn("\x1b[38;2;211;211;211mlight grey\x1b[0m", preview)
+        self.assertIn("\x1b[38;2;144;144;144mdark grey\x1b[0m", preview)
+        self.assertIn("\x1b[30;47mblack\x1b[0m", preview)
+        self.assertIn("room descriptions", preview)
+        self.assertIn("palette", MUD_HELP)
 
     def test_no_ansi_fallback_and_useful_help(self):
         msg = "Service Bay\nExits: south\nYou say: hello"
