@@ -58,7 +58,11 @@ This creates a disposable SQLite database, imports the synthetic worldpack,
 joins a synthetic human, and exercises actual `look`, movement, `take`, and
 `inventory` actions. It does not operate a listener or touch a played world.
 Lappy's held historical REALM PR172 source passed this smoke test on
-2026-11-11, but the current engine and a live deployment are still unverified.
+2026-11-11. A separate isolated checkout of current REALM `main` at
+`d7cacb1c5eebf7fffe39d0dcc7913ff8bc397fae` passed the same importer and
+five-action smoke test on 2026-11-11. This proves only the synthetic import
+and command path, **not** credential integration, a running Driftspace gateway,
+or AI crew behavior.
 
 ## Remaining gates before integration
 
