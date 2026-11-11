@@ -68,7 +68,9 @@ mint an AI-name bearer token outside the adapter, and its unmodified gateway
 will accept that bearer. A passing probe is **not** a deployment approval.
 This source-only adapter is not installed as a REALM CLI/HTTP provisioning
 policy, not transactional with the game writer, and not qualified against
-REALM's held PR #180. Future integration must prevent out-of-band issuance and
+REALM's held PR #180. It fails closed if given a Gateway with an active
+`scoped_credentials` store; the synthetic marker regression does not itself
+qualify PR #180. Future integration must prevent out-of-band issuance and
 model control of human Rylok in the authoritative host.
 
 ## Importable synthetic station
