@@ -103,6 +103,18 @@ def verify(realm_src: Path, worldpack: Path) -> None:
             human_actor_id=HUMAN, public_handles=HANDLES,
         )
 
+        # Compatibility guard: current REALM main has legacy credentials, but
+        # draft scoped mode is a different security contract. This synthetic
+        # marker tests fail-closed behavior, NOT actual PR #180 qualification.
+        gateway_a.scoped_credentials = object()
+        try:
+            refused("unqualified scoped credential mode rejected", lambda: CrewHostAdmission.load(
+                gateway_a, roster_path, world_id=WORLD,
+                human_actor_id=HUMAN, public_handles=HANDLES,
+            ))
+        finally:
+            del gateway_a.scoped_credentials
+
         refused("cross-world admission binding", lambda: CrewHostAdmission.load(
             gateway_b, roster_path, world_id=WORLD,
             human_actor_id=HUMAN, public_handles=HANDLES,
