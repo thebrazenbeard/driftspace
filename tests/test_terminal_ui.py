@@ -17,10 +17,43 @@ class TerminalPresentationTests(unittest.TestCase):
         msg = "Exchange Hall\n\x1b[31mDanger\x1b[0m\nExits: north, south, west\nItems: Salvage tag"
         out = render_terminal(msg)
         self.assertIn("\x1b[1;36mExchange Hall\x1b[0m", out)
-        self.assertIn("\x1b[1;33mExits: north, south, west\x1b[0m", out)
-        self.assertIn("\x1b[1;32mItems: Salvage tag\x1b[0m", out)
+        self.assertIn("\x1b[37mExits:\x1b[0m \x1b[1;33mnorth, south, west\x1b[0m", out)
+        self.assertNotIn("\x1b[1;33mExits: north", out)
+        self.assertIn("\x1b[37mItems:\x1b[0m \x1b[1;32mSalvage tag\x1b[0m", out)
+        self.assertNotIn("\x1b[1;32mItems: Salvage", out)
         self.assertNotIn("\x1b[31mDanger", out)
         self.assertTrue(terminal_prompt().startswith("\x1b["))
+
+    def test_other_labels_and_values_are_distinct(self):
+        response = "You carry: Test Lamp\nYou take Test Badge.\nYou say: Hello?"
+        rendered = render_terminal(response)
+        self.assertIn("\x1b[37mYou carry:\x1b[0m \x1b[1;32mTest Lamp\x1b[0m", rendered)
+        self.assertIn("\x1b[37mYou take\x1b[0m \x1b[1;32mTest Badge.\x1b[0m", rendered)
+        self.assertIn("\x1b[37mYou say:\x1b[0m \x1b[1;35mHello?\x1b[0m", rendered)
+
+    def test_color_words_in_room_prose_only(self):
+        example = (
+            "Arrival Platform\n"
+            "Copper coils blink amber. The black monitor reflects silver dust; "
+            "a coppery scratch is not a color name.\n"
+            "Exits: east\n"
+            "You say: amber copper black\n"
+        )
+        output = render_terminal(example)
+        self.assertIn("\x1b[38;2;184;115;51mCopper\x1b[0m", output)
+        self.assertIn("\x1b[38;2;255;191;0mamber\x1b[0m", output)
+        self.assertIn("\x1b[30;47mblack\x1b[0m", output)
+        self.assertIn("\x1b[38;2;192;192;192msilver\x1b[0m", output)
+        self.assertIn("coppery", output)
+        self.assertIn("You say:\x1b[0m \x1b[1;35mamber copper black\x1b[0m", output)
+        self.assertEqual(example, render_terminal(example, ansi=False))
+
+    def test_room_description_colors_do_not_bleed_into_exits(self):
+        text = "Exchange Hall\nAmber and black placards.\nExits: north, west\nItems: Copper token"
+        out = render_terminal(text)
+        self.assertIn("\x1b[37mExits:\x1b[0m \x1b[1;33mnorth, west\x1b[0m", out)
+        self.assertIn("\x1b[37mItems:\x1b[0m \x1b[1;32mCopper token\x1b[0m", out)
+        self.assertNotIn("\x1b[38;2;184;115;51mCopper token", out)
 
     def test_no_ansi_fallback_and_useful_help(self):
         msg = "Service Bay\nExits: south\nYou say: hello"
