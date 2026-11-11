@@ -79,6 +79,22 @@ class CrewProjectionContract(unittest.TestCase):
         first["crew"][0]["handle"] = "tampered"
         self.assertEqual(view.present("two")["crew"][0]["handle"], "Rylok")
 
+    def test_direct_construction_cannot_skip_private_roster_validation(self):
+        public_crew = tuple((handle, "human" if handle == "Rylok" else "ai")
+                            for handle in HANDLES.values())
+        with self.assertRaises(TypeError):
+            CrewProjection(world_id=WORLD, public_crew=public_crew)
+
+    def test_loaded_projection_cannot_be_rebound(self):
+        view = self.load()
+        with self.assertRaises(AttributeError):
+            view._world_id = "other-world"
+        with self.assertRaises(AttributeError):
+            view._crew = (("Rylok", "ai"),)
+        with self.assertRaises(AttributeError):
+            view.unexpected_attribute = True
+        self.assertEqual(view.present("one")["world_id"], WORLD)
+
     def test_world_mismatch_fails(self):
         with self.assertRaises(ValueError):
             self.load(world_id="other-world")
