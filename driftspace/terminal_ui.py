@@ -208,7 +208,7 @@ def _color_room_prose(line: str) -> str:
 MUD_HELP = (
     "Movement: north/south/east/west (n/s/e/w), look, where\n"
     "Items: take/get/pickup/obtain <item>, drop/discard <item>, inventory, items\n"
-    "Inspect: examine/inspect <item>, look at <item>; map (if configured)\n"
+    "Inspect: examine/inspect <item>, look at <item>; map (discovered rooms only)\n"
     "Comms: say <text>, emote <action>, yell <text>, ooc <text>, crewchat <text>\n"
     "Information: who, listen, history [1-50], socials, palette/colors, help, quit\n"
     "This is a synthetic private pilot. Socials are saved locally; AI crew"
