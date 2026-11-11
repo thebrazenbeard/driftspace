@@ -19,7 +19,11 @@ class PilotAction:
 
 
 def _items(db_path: Path, actor: str, *, location: str) -> list[sqlite3.Row]:
-    with sqlite3.connect(db_path, timeout=5) as db:
+    # Opening in URI read-only mode forbids accidental DB creation or mutation.
+    target = Path(db_path)
+    if not target.is_file():
+        return []
+    with sqlite3.connect(target.resolve().as_uri() + "?mode=ro", uri=True, timeout=5) as db:
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA query_only=ON")
         player = db.execute("SELECT room_id FROM players WHERE id=?", (actor,)).fetchone()
