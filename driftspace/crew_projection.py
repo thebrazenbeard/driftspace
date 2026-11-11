@@ -28,11 +28,19 @@ def _reject_duplicate_fields(pairs: list[tuple[str, object]]) -> dict:
 
 
 class CrewProjection:
-    """A frozen public view of an inactive, precisely validated crew proposal."""
+    """A read-only public view made only by ``load`` in ordinary caller code.
+
+    This is not an authentication or authorization boundary. The REALM host
+    must independently authenticate players and authorize every action.
+    """
+
+    __slots__ = ("_world_id", "_crew")
 
     def __init__(self, *, world_id: str, public_crew: tuple[tuple[str, str], ...]):
-        self._world_id = world_id
-        self._crew = public_crew
+        raise TypeError("CrewProjection must be created with load()")
+
+    def __setattr__(self, name: str, value: object) -> None:
+        raise AttributeError("CrewProjection is read-only")
 
     @classmethod
     def load(
@@ -98,7 +106,10 @@ class CrewProjection:
                 raise ValueError("Private actor control or activation mismatch")
             public_crew.append((handle, "human" if human else "ai"))
 
-        return cls(world_id=world_id, public_crew=tuple(public_crew))
+        projection = object.__new__(cls)
+        object.__setattr__(projection, "_world_id", world_id)
+        object.__setattr__(projection, "_crew", tuple(public_crew))
+        return projection
 
     def present(self, authenticated_principal: str) -> dict:
         """Render an approved projection *after* the caller authenticates a human.
