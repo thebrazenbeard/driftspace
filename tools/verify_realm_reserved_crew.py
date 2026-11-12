@@ -5,6 +5,7 @@ Requires trusted REALM source with host-only principal_roles. No live-world chan
 from __future__ import annotations
 
 import argparse
+from contextlib import closing
 from pathlib import Path
 import sys
 import tempfile
@@ -55,11 +56,11 @@ def verify(realm_src: Path, worldpack: Path) -> None:
             host.join(name)
             check(reserve_npc(host.engine, name), name + ": reserve")
             check(not reserve_npc(host.engine, name), name + ": idempotent")
-            with host.engine._connect() as connection:
+            with closing(host.engine._connect()) as connection:
                 check(is_reserved_npc(connection, name), name + ": persisted")
             rejected(lambda n=name: host.credentials.provision(n), name + ": issuance denied")
             rejected(lambda n=name: host.credentials.rotate(n), name + ": rotation denied")
-        with host.engine._connect() as connection:
+        with closing(host.engine._connect()) as connection:
             check(not is_reserved_npc(connection, HUMAN), "captain remains human")
         admission = CrewHostAdmission.load(host, roster, world_id=WORLD,
                                            human_actor_id=HUMAN, public_handles=HANDLES)
