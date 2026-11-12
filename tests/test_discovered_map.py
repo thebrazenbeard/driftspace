@@ -2,6 +2,7 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import sqlite3
+from contextlib import closing
 import unittest
 
 from driftspace.discovered_map import render_discovered_map
@@ -12,7 +13,7 @@ class DiscoveredMapTests(unittest.TestCase):
         self.temp = TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.path = Path(self.temp.name) / "game.sqlite3"
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.executescript("""
             CREATE TABLE players(id TEXT PRIMARY KEY,room_id TEXT);
             CREATE TABLE rooms(id TEXT PRIMARY KEY,name TEXT,description TEXT);
@@ -45,7 +46,7 @@ class DiscoveredMapTests(unittest.TestCase):
         self.assertNotIn("Viewing Gallery",result)
 
     def test_movement_reveals_visited_rooms_only(self):
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("UPDATE players SET room_id='exchange' WHERE id='Rylok'")
             db.execute("INSERT INTO events(actor,room_id,kind) VALUES('Rylok','exchange','move')")
         result=render_discovered_map(self.path,"Rylok")
@@ -58,7 +59,7 @@ class DiscoveredMapTests(unittest.TestCase):
         self.assertIn("* [Exchange Hall]",result)
 
     def test_other_actor_history_does_not_grant_room_knowledge(self):
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("INSERT INTO events(actor,room_id,kind) VALUES('Visitor','gallery','move')")
         own=render_discovered_map(self.path,"Rylok")
         self.assertNotIn("Viewing Gallery",own)
@@ -76,12 +77,12 @@ class DiscoveredMapTests(unittest.TestCase):
         self.assertIn("unavailable",render_discovered_map(self.path,"Unjoined").lower())
 
     def test_map_coordinates_do_not_recenter_when_player_moves(self):
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             for room in ("exchange","service","gallery"):
                 db.execute("INSERT INTO events(actor,room_id,kind) VALUES('Rylok',?,'move')",(room,))
             db.execute("UPDATE players SET room_id='service' WHERE id='Rylok'")
         first=render_discovered_map(self.path,"Rylok").replace("* [","  [")
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("UPDATE players SET room_id='gallery' WHERE id='Rylok'")
         second=render_discovered_map(self.path,"Rylok").replace("* [","  [")
         self.assertEqual(first,second,"A player move must not rearrange known map coordinates")
@@ -91,7 +92,7 @@ class DiscoveredMapTests(unittest.TestCase):
         self.assertIn("map (discovered rooms only)", MUD_HELP)
 
     def test_full_station_coordinates_and_current_marker(self):
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("UPDATE players SET room_id='gallery' WHERE id='Rylok'")
             for room in ("exchange","service","gallery"):
                 db.execute("INSERT INTO events(actor,room_id,kind) VALUES('Rylok',?,'move')",(room,))

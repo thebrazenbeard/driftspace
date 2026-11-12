@@ -9,6 +9,7 @@ from pathlib import Path
 import os
 import re
 import sqlite3
+from contextlib import closing
 
 ROOMS = frozenset({"Arrival Platform", "Exchange Hall", "Service Bay", "Viewing Gallery"})
 _SGR = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
@@ -296,7 +297,7 @@ class SocialStore:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.path.touch(mode=0o600, exist_ok=True)
         os.chmod(self.path, 0o600)
-        with self._db() as db:
+        with closing(self._db()) as db, db:
             db.execute("""CREATE TABLE IF NOT EXISTS events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 actor TEXT NOT NULL,
@@ -311,20 +312,20 @@ class SocialStore:
     def append(self, actor: str, social: Social) -> None:
         if actor != "Rylok" or social.scope not in {"room", "world", "crew"}:
             raise ValueError("This pilot only supports Captain Rylok")
-        with self._db() as db:
+        with closing(self._db()) as db, db:
             db.execute(
                 "INSERT INTO events (actor,kind,scope,message) VALUES (?,?,?,?)",
                 (actor, social.kind, social.scope, social.text)
             )
 
     def count(self) -> int:
-        with self._db() as db:
+        with closing(self._db()) as db, db:
             return int(db.execute("SELECT COUNT(*) FROM events").fetchone()[0])
 
     def recent(self, scope: str) -> list[tuple[str, str, str]]:
         if scope not in {"room", "world", "crew"}:
             raise ValueError("Invalid pilot social scope")
-        with self._db() as db:
+        with closing(self._db()) as db, db:
             return list(db.execute(
                 "SELECT actor,kind,message FROM events WHERE scope=? ORDER BY id DESC LIMIT 12",
                 (scope,)

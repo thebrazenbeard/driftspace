@@ -9,6 +9,7 @@ from collections import deque
 from pathlib import Path
 import re
 import sqlite3
+from contextlib import closing
 
 _MAX_ROOMS = 48
 _DELTAS = {"north": (0,-1), "south":(0,1), "east":(1,0), "west":(-1,0)}
@@ -20,7 +21,7 @@ def render_discovered_map(db_path: Path, actor: str) -> str:
     if not path.is_file():
         return "Discovered map unavailable for this pilot."
     try:
-        with sqlite3.connect(path.resolve().as_uri()+"?mode=ro", uri=True, timeout=5) as db:
+        with closing(sqlite3.connect(path.resolve().as_uri()+"?mode=ro", uri=True, timeout=5)) as db:
             db.row_factory=sqlite3.Row
             db.execute("PRAGMA query_only=ON")
             player=db.execute("SELECT room_id FROM players WHERE id=?", (actor,)).fetchone()

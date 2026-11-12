@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import sqlite3
+from contextlib import closing
 import re
 
 
@@ -23,7 +24,7 @@ def _items(db_path: Path, actor: str, *, location: str) -> list[sqlite3.Row]:
     target = Path(db_path)
     if not target.is_file():
         return []
-    with sqlite3.connect(target.resolve().as_uri() + "?mode=ro", uri=True, timeout=5) as db:
+    with closing(sqlite3.connect(target.resolve().as_uri() + "?mode=ro", uri=True, timeout=5)) as db:
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA query_only=ON")
         player = db.execute("SELECT room_id FROM players WHERE id=?", (actor,)).fetchone()

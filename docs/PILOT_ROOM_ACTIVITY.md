@@ -82,3 +82,13 @@ Limit: host entry lookup still runs after its original join/command
 transaction. This fixes the tested other-actor speech race, not concurrent
 sessions for one character, lost join responses, token revocation, or
 exactly-once delivery.
+
+## Windows SQLite connection ownership
+
+Python's SQLite connection context manager commits or rolls back a
+transaction but does not close the handle. Windows refuses to delete a
+temporary SQLite file while any handle remains open. Read-only map and
+inspection queries, scoped pilot social receipts, and synthetic test
+fixtures now explicitly close their connections after use. This is
+resource-lifecycle hardening; it does not alter game permissions,
+character state, chat visibility or room discovery policy.

@@ -2,6 +2,7 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import sqlite3
+from contextlib import closing
 import unittest
 
 from driftspace.pilot_actions import interpret_pilot_command
@@ -12,7 +13,7 @@ class PilotCommandTests(unittest.TestCase):
         self.temp = TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.db = Path(self.temp.name) / "synthetic.sqlite3"
-        with sqlite3.connect(self.db) as c:
+        with closing(sqlite3.connect(self.db)) as c, c:
             c.execute("CREATE TABLE players(id TEXT PRIMARY KEY, room_id TEXT NOT NULL)")
             c.execute("CREATE TABLE items(id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT NOT NULL, room_id TEXT, held_by TEXT)")
             c.execute("INSERT INTO players VALUES ('Rylok','arrival')")
@@ -42,7 +43,7 @@ class PilotCommandTests(unittest.TestCase):
         self.assertEqual("take test_badge", self.resolve("get badge").host_command)
 
     def test_whole_word_matching_uses_whitespace_not_substrings(self):
-        with sqlite3.connect(self.db) as c:
+        with closing(sqlite3.connect(self.db)) as c, c:
             c.execute(
                 "INSERT INTO items VALUES ('toolcase','Salvage Kit','A small sample kit.','arrival',NULL)"
             )
@@ -60,7 +61,7 @@ class PilotCommandTests(unittest.TestCase):
         self.assertIn("not visible",interpret_pilot_command("examine badge",self.db,"Other").response.lower())
 
     def test_ambiguous_prefix_and_missing_targets_fail_closed(self):
-        with sqlite3.connect(self.db) as c:
+        with closing(sqlite3.connect(self.db)) as c, c:
             c.execute("INSERT INTO items VALUES ('badge2','Test Badge Copy','Different badge.','arrival',NULL)")
         self.assertIn("multiple",self.resolve("get test").response.lower())
         self.assertIn("multiple",self.resolve("examine test").response.lower())
