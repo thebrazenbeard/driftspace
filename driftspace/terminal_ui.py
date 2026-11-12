@@ -210,7 +210,8 @@ MUD_HELP = (
     "Items: take/get/pickup/obtain <item>, drop/discard <item>, inventory, items\n"
     "Inspect: examine/inspect <item>, look at <item>; map (discovered rooms only)\n"
     "Comms: say <text>, emote <action>, yell <text>, ooc <text>, crewchat <text>\n"
-    "Information: who, listen, history [1-50], socials, palette/colors, help, quit\n"
+    "Information: who, listen (new room activity), history [1-50] (this session only),\n"
+    "socials, palette/colors, help, quit\n"
     "This is a synthetic private pilot. Socials are saved locally; AI crew"
     " and live multiplayer channel delivery are NOT online."
 )
