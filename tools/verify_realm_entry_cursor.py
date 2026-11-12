@@ -14,6 +14,8 @@ from threading import Thread
 from unittest.mock import patch
 from urllib.request import Request, urlopen
 
+# Direct invocation from the tools/ directory must also work on Windows.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from driftspace.room_activity import RoomActivity, gateway_room_cursor
 
 
