@@ -140,6 +140,10 @@ def verify(realm_src: Path, worldpack: Path) -> None:
                       actor + ": one approved handle")
                 check(call["host_identity"]["synthetic_or_approved_style"] == styles[actor],
                       actor + ": distinct host-owned style")
+                check("Only the say verb is permitted" in call["rules"],
+                      actor + ": the model sees the speech-only policy")
+                check("exact four ASCII" in call["rules"] and "Do NOT put a comma" in call["rules"],
+                      actor + ": command syntax is unambiguous")
                 check("PLAYER_VISIBLE_AFTER_JOIN" in json.dumps(call),
                       actor + ": host-built post-arrival speech")
                 check(HUMAN not in call["host_identity"].values(),
