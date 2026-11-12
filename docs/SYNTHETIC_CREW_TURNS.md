@@ -68,3 +68,42 @@ inference worker resource/latency/timeout measurement on Lappy or VN2;
 private migration and rollback; prompt-injection, abuse, and multiplayer
 hostile testing; review of all real-character dialogue. No network port,
 existing player save, deployed services or private source is changed.
+
+## Opt-in real-model canary (not a character evaluation)
+
+The separate `tools/qualify_real_crew_model.py` is a **real-model, single-
+NPC** canary against an already-running, loopback-bound local chat-completions
+server. It requires explicit `--allow-existing-loopback-model`, an explicit
+pinned/trusted REALM source directory, a host-selected model identifier, and
+a host-selected literal loopback endpoint. It refuses to request inference
+when available system memory is below 2 GiB. No model, service or weight is
+installed or started. All actions remain in disposable synthetic SQLite.
+The script prints elapsed time, model-request count, memory observations,
+a synthetic NPC's accepted/rejected speech and durable host receipt. A
+rejected model action exits nonzero (status 2) rather than silently appearing
+as a passing test. No credentials, raw private Wreckforge canon or user
+messages are sent.
+
+Example on a host with an **already-running**, independently approved model:
+
+```sh
+python tools/qualify_real_crew_model.py \
+  --allow-existing-loopback-model \
+  --realm-src /trusted/REALM/src \
+  --endpoint http://127.0.0.1:LOCAL_PORT/v1/chat/completions \
+  --model approved-local-model-id \
+  --timeout 45 --max-tokens 96
+```
+
+One bounded VN2 experiment on 2026-11-12 used an existing CPU llama-server
+with a Granite 3.3 2B instruct Q4_K_M GGUF (1,545,303,616 bytes, observed
+SHA-256 `555b91485955bc96eb445b57dd4bbf8809aa7d8cce7c313f4f8bc5b2340896b4`).
+At first the server produced a model-authored command outside the permitted
+`say` verb, correctly rejected without game effects. A stricter prompt
+still yielded an invalid `say,` command, correctly rejected. After clarifying
+the exact `say ` syntax, **one genuine neural proposal was accepted** and
+committed to disposable SQLite as SyntheticTessa speech; one host receipt was
+replayed without second inference. Observed successful single-turn latency
+was ~5.8s on this CPU host. It is a *single observed sample*, not a latency
+distribution, six-voice quality benchmark, production resource budget,
+licensing endorsement, or an indication the actual crew is activated.
