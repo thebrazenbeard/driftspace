@@ -107,3 +107,44 @@ replayed without second inference. Observed successful single-turn latency
 was ~5.8s on this CPU host. It is a *single observed sample*, not a latency
 distribution, six-voice quality benchmark, production resource budget,
 licensing endorsement, or an indication the actual crew is activated.
+
+## Six-person real-model hostile voice test
+
+`tools/qualify_real_six_crew.py` separately supports an operator-initiated
+sequence of 1–6 real requests to an **already-running** literal loopback
+model endpoint. Its `--max-actors` scope is bounded, its input contains
+only disposable synthetic world context, and it never starts or installs
+a worker. It records per-character host identity, distinct prompt digests,
+model-only latency, acceptance/rejection, receipt replay and whether the
+model copied a previous NPC's scene dialogue. It **exits 2** when all
+selected synthetic voices are not accepted and distinct; an HTTP 200 or
+six actor-bound receipts is not a voice-quality success.
+
+On 2026-11-12, **before the echo-safety correction**, an existing CPU Granite
+3.3 2B worker returned an identical Tessa-specific sentence for all **six**
+separately submitted synthetic actors. Host principal/receipt ownership was
+correct for all six, but **six-way voice distinctness failed**. Observed
+model-only latencies for that run were 14.600, 15.909, 16.688, 17.913,
+18.420 and 19.155 seconds (six-sample median 17.3 seconds); timings were
+substantially faster in another small run, so this is not a production
+p50/p95 guarantee. Do not advertise it as six working AI personalities.
+
+A later two-actor experiment verified the **actual prompts were different**:
+Tessa and Calamar were correctly bound to their own source identities and had
+different SHA-256 scene digests; Calamar's newly built scene included Tessa's
+recent spoken line, and the model parroted it. The newly implemented setting
+guard rejected Calamar's duplicate rather than commit the wrong voice.
+It also denies duplicate proposals **inside a single batch**, where REALM
+snapshots each scene before any speech is committed. Regression tests first
+reproduced both defects (RED), then passed after the quality guard (GREEN).
+The guard normalizes case and surrounding quotes only for equality and does
+not rewrite an illegal command into an allowed one. It is a conservative
+synthetic dialogue-quality hold, not a guarantee of convincing personalities,
+a model-security proof, or a reason to relax REALM host permissions.
+
+A later actor's rejected model proposal does **not** roll back an earlier
+already-committed resident turn. Caller recovery must use each stable
+action receipt, not assume all-or-nothing six-actor transactions. A server
+replay, prompt injection, secret leakage, cross-world memory and poor dialogue
+remain independent failure modes to test. None of this has been installed in
+the running private VN2 Driftspace world.
