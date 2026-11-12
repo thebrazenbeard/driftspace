@@ -34,6 +34,29 @@ def parse_activity_command(command: str) -> tuple[str, int] | None:
     return ("history", int(count))
 
 
+def gateway_room_cursor(response: dict) -> int:
+    """Select a host entry boundary, falling back only for older Gateways.
+
+    The legacy global cursor can skip simultaneous messages; use the
+    authoritative room_entry_cursor whenever the host explicitly supplies it.
+    Malformed claims fail closed rather than silently selecting a global tail.
+    """
+    if not isinstance(response, dict) or response.get("ok") is not True:
+        raise ValueError("Authenticated Gateway response is required")
+    current = response.get("cursor")
+    if not isinstance(current, int) or isinstance(current, bool) or current < 0:
+        raise ValueError("Invalid Gateway cursor")
+    if "room_entry_cursor" not in response:
+        return current  # compatibility with current live REALM main
+    entry = response["room_entry_cursor"]
+    if (
+        not isinstance(entry, int) or isinstance(entry, bool)
+        or entry < 0 or entry > current
+    ):
+        raise ValueError("Invalid or missing room-entry evidence")
+    return entry
+
+
 class RoomActivity:
     def __init__(self, actor: str, cursor: int):
         if not actor or not isinstance(cursor, int) or isinstance(cursor, bool) or cursor < 0:

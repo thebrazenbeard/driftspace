@@ -1,9 +1,30 @@
 """Test credential-bound, session-limited room activity without prior-room history."""
 import unittest
-from driftspace.room_activity import RoomActivity, parse_activity_command
+from driftspace.room_activity import RoomActivity, parse_activity_command, gateway_room_cursor
 
 
 class RoomActivityTests(unittest.TestCase):
+    def test_entry_cursor_prefers_authoritative_room_boundary(self):
+        joined={"ok":True,"cursor":15,"room_entry_cursor":12}
+        self.assertEqual(12,gateway_room_cursor(joined))
+        self.assertEqual(12,RoomActivity("Rylok",gateway_room_cursor(joined)).cursor)
+
+    def test_older_gateway_uses_global_cursor_without_guessing(self):
+        self.assertEqual(15,gateway_room_cursor({"ok":True,"cursor":15}))
+
+    def test_invalid_or_missing_room_entry_cursor_rejected(self):
+        for message in (
+            {"ok": True, "cursor":9, "room_entry_cursor":None},
+            {"ok": True, "cursor":9, "room_entry_cursor":10},
+            {"ok": True, "cursor":9, "room_entry_cursor":True},
+            {"ok": True, "cursor":9, "room_entry_cursor":-1},
+            {"ok": True, "cursor":9, "room_entry_cursor":"3"},
+            {"ok": True, "cursor":-1},
+            {"ok":False, "cursor":9},
+        ):
+            with self.subTest(message=message),self.assertRaises(ValueError):
+                gateway_room_cursor(message)
+
     def test_new_session_does_not_replay_events_prior_to_login(self):
         f=RoomActivity("Rylok", cursor=18)
         args=[]

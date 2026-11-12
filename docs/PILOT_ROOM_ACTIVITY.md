@@ -58,3 +58,27 @@ tests with synthetic actors, NOT a deployed real-player multiplayer claim.
   public multi-user release. The pilot's cursor does not solve that upstream.
 - No private story source, credentials, other world databases, or service ports
   are imported or changed by the public source in this PR.
+
+## Room-entry cursor race (source-only proposed REALM contract)
+
+The generic REALM gateway currently reports a global `cursor` after `join`
+or `command`. Another player can speak between the room-entry event and
+the later global cursor sample, causing a client to skip post-entry speech.
+
+The proposed backward-compatible `room_entry_cursor` field identifies the
+actor's latest host-recorded entry into the current room, independently of
+global feed traffic. On a successful join or movement, Driftspace's
+`gateway_room_cursor(response)` prefers this value and rejects malformed
+authoritative evidence. Older REALM servers lacking the field still use the
+global cursor, including its known message-loss race. Fallback is not a
+claim of lossless delivery.
+
+`tools/verify_realm_entry_cursor.py` tests a disposable authenticated HTTP
+Gateway and two actors, injecting speech between join/move and global cursor
+sampling. The private Telnet adapter is prepared to prefer the new field
+when a qualified REALM host supplies it; no running host upgrade is implied.
+
+Limit: host entry lookup still runs after its original join/command
+transaction. This fixes the tested other-actor speech race, not concurrent
+sessions for one character, lost join responses, token revocation, or
+exactly-once delivery.
