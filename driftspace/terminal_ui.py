@@ -212,9 +212,10 @@ MUD_HELP = (
     "Inspect: examine/inspect <item>, look at <item>; map (discovered rooms only)\n"
     "Comms: say <text>, emote <action>, yell <text>, ooc <text>, crewchat <text>\n"
     "Information: who, listen (new room activity), history [1-50] (this session only),\n"
-    "socials, palette/colors, help, quit\n"
-    "This is a synthetic private pilot. Socials are saved locally; AI crew"
-    " and live multiplayer channel delivery are NOT online."
+    "watch on/off/status (automatically show new room events), socials,\n"
+    "palette/colors, help, quit\n"
+    "This is a synthetic private pilot. Only REALM room speech is delivered;"
+    " pilot socials and AI crew do not reach other players."
 )
 
 @dataclass(frozen=True)

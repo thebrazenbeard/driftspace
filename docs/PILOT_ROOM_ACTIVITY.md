@@ -92,3 +92,33 @@ inspection queries, scoped pilot social receipts, and synthetic test
 fixtures now explicitly close their connections after use. This is
 resource-lifecycle hardening; it does not alter game permissions,
 character state, chat visibility or room discovery policy.
+
+## Automatic room activity, opt-out private terminal preview
+
+The authenticated, Rylok-only private Telnet bridge can poll the existing
+REALM room-event feed on a socket idle tick (about every two seconds).
+New other-actor room events appear automatically, followed by the ordinary
+Driftspace prompt. There are no background worker threads writing to the
+same Telnet socket. Partially typed commands are left uninterrupted.
+
+Controls: `watch on`, `watch off`, `watch status`. Automatic updates begin
+enabled for the private synthetic pilot. `listen` remains available to
+fetch immediately and `history N` still shows only received session events.
+`watch off` stops automatic HTTP polling but does not revoke access to
+the current room or erase already buffered received events.
+
+Three consecutive invalid/unavailable gateway polls pause automatic
+updates and emit one generic warning without copying server error text
+or bearer details. `watch on` retries. Every feed is requested through
+the already-authenticated Rylok Gateway context, never a client-chosen
+player identity. The current live REALM host still lacks the new explicit
+entry cursor from draft PR #189; this preview retains the older cursor
+fallback until a host upgrade is qualified.
+
+`tools/verify_auto_room_bridge.py` requires explicit authorized bridge and
+REALM source paths. It creates disposable credentials, Gateway, worldpack,
+and private Telnet listener, then checks spontaneous new speech, watch
+on/off, invalid commands, pre-join/pre-entry confidentiality, room movement,
+typed-command preservation, scoped history, and disconnect. This is a
+private **poll-to-terminal** prototype, not socket-push from REALM, public
+multiplayer, or any live AI crew behavior.
