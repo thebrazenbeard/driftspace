@@ -9,6 +9,7 @@ without a trusted host caller explicitly opting in.
 from __future__ import annotations
 
 from contextlib import closing
+from contextvars import ContextVar
 import json
 from pathlib import Path
 from typing import Mapping
@@ -18,6 +19,10 @@ from .crew_projection import APPROVED_HANDLES, CrewProjection
 _MAX_STYLE = 160
 _MAX_HOST_VIEW = 6000
 _MAX_TURNS = 6
+# One logical host tick, never a model conversation or a global memory store.
+_BATCH_PROPOSED_LINES: ContextVar[set[str] | None] = ContextVar(
+    "driftspace_synthetic_batch_proposed_lines", default=None,
+)
 
 
 def _unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
@@ -121,7 +126,28 @@ class CrewTurnCoordinator:
                     }, ensure_ascii=True, separators=(",", ":"))
                     if len(view) > _MAX_HOST_VIEW:
                         raise ValueError("NPC style and scene exceed local model budget")
-                    return proposer.propose(view)
+                    proposal = proposer.propose(view)
+                    command = proposal.get("command")
+                    if type(command) is str and command.casefold().startswith("say "):
+                        # This is a *quality* hold, not an identity/auth bypass:
+                        # never echo an already-present room utterance verbatim.
+                        # All underlying action/receipt authority stays with REALM.
+                        dialogue = command[4:].strip().strip("\"'").strip().casefold()
+                        recent = scene.get("recent_speech")
+                        if not isinstance(recent, list):
+                            raise ValueError("Authoritative room speech list is absent")
+                        for spoken in recent:
+                            if not isinstance(spoken, dict) or type(spoken.get("text")) is not str:
+                                raise ValueError("Authoritative room speech item is invalid")
+                            prior = spoken["text"].strip().strip("\"'").strip().casefold()
+                            if dialogue and dialogue == prior:
+                                raise ValueError("Model repeated existing room dialogue")
+                        batch_lines = _BATCH_PROPOSED_LINES.get()
+                        if batch_lines is not None and dialogue:
+                            if dialogue in batch_lines:
+                                raise ValueError("Model repeated an earlier proposal in this crew batch")
+                            batch_lines.add(dialogue)
+                    return proposal
 
             wrapped = _ProfiledSharedProposer(proposer.config)
             self._host = ResidentTurnHost(gateway.engine, wrapped, max_turns=_MAX_TURNS)
@@ -179,4 +205,8 @@ class CrewTurnCoordinator:
                 self._gateway.engine, actor, allowed_verbs=frozenset({"say"}),
             ), action_id,
         ) for actor, action_id in turns)
-        return self._host.run_scoped_tick(prepared)
+        token = _BATCH_PROPOSED_LINES.set(set())
+        try:
+            return self._host.run_scoped_tick(prepared)
+        finally:
+            _BATCH_PROPOSED_LINES.reset(token)
