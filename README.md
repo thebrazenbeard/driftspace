@@ -4,7 +4,7 @@ Driftspace is a planned science-fiction world for [REALM](https://github.com/the
 
 ## Current status
 
-Early development and coordination. The public `main` branch currently contains project orientation only. A playable Driftspace instance, public URL, imported worldpack, operational AI crew, and character-model training **have not been verified**. Existing REALM host pilots are separate and are not evidence of a Driftspace deployment.
+**Private synthetic pilot verified on VN2 (2026-11-12).** A separate, four-room Driftspace test world is running behind Tailscale with a game-only Telnet/Mudlet listener on port `7777`. On November 12, the listener was reachable from Lappy, the three Driftspace services and separate REALM pilot service were running, and Driftspace Draft [PR #4](https://github.com/thebrazenbeard/driftspace/pull/4) at `62b89662208785168e999632ce6f38ed7b6941c0` passed **67/67 tests** in both normal and optimized Python on VN2. This is a **private prototype**, not a release: the full station, six AI crew, public website/URL, model training, and general multiplayer readiness are not established. The REALM host security/privacy work remains held for review. The public `main` branch is orientation/documentation only; it is not the deployed pilot's source checkout. The unrelated REALM `siltglass-reach` pilot remains separate.
 
 ## Project boundaries
 
