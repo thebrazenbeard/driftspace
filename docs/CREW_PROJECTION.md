@@ -73,6 +73,35 @@ REALM's held PR #180. It fails closed if given a Gateway with an active
 qualify PR #180. Future integration must prevent out-of-band issuance and
 model control of human Rylok in the authoritative host.
 
+## Six-crew host principal reservation candidate (newer REALM draft)
+
+The optional `tools/verify_realm_reserved_crew.py` validates an **unreleased**
+REALM host-only principal-reservation implementation, currently tracked in
+[REALM draft PR #193](https://github.com/thebrazenbeard/REALM/pull/193).
+It imports only the synthetic four-room fixture into disposable SQLite, makes
+six **inactive** host-only resident principals alongside one human captain,
+and checks idempotent reservations, durable role identity, new/rotated bearer
+denial, admission of the human captain, no model identity claim, a
+host-controlled synthetic resident action, forged actor HTTP denial, and
+pre-issued legacy/scoped credential invalidation. It does **not** touch the
+running private VN2 game, create AI models or grant user-visible NPC authority.
+
+Run against an explicitly checked-out trusted **candidate** source directory,
+not current REALM main unless it has already gained equivalent verified code:
+
+```sh
+python tools/verify_realm_reserved_crew.py --realm-src /absolute/path/to/REALM/src
+python -O tools/verify_realm_reserved_crew.py --realm-src /absolute/path/to/REALM/src
+```
+
+The probe intentionally rejects older REALM revisions that lack
+`principal_roles.py`. A pass is **only a disposable integration result**, not
+proof that the draft was merged, a live host was upgraded, existing credentials
+were migrated, private Wreckforge identities were activated or the six NPC
+personalities can converse. Additional required gates include operational
+identity issuance, same-character sessions, clock rollback, source rights,
+actor-scoped memory, real model-worker measurements and public transport.
+
 ## Importable synthetic station
 
 `examples/driftspace-synthetic-demo.worldpack.v1.json` is a deliberately
