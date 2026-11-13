@@ -171,8 +171,13 @@ re-authorization callback, so caching crewchat would allow local replay
 after role revocation and before the next network poll. Other ordinary
 room activity remains session-only and is cleared on room transitions.
 
-A legacy host that omits `channel_revision` continues to support only
-known public/room event kinds. A group-channel or unrecognized event from
+A session that has seen a valid host-issued `channel_revision` rejects
+a later response missing the field: it clears cached text, preserves the last
+trusted revision, and does not advance the cursor. This prevents a silent
+modern-to-legacy downgrade even across repeated failed polls.
+
+A fresh legacy host session that has never supplied `channel_revision`
+continues to support only known public/room event kinds. A group-channel or unrecognized event from
 such a response is rejected *before display* and without cursor advancement.
 A modern authenticated feed may display future unknown event kinds, but
 only an explicit allowlist of known room/public kinds can enter offline
