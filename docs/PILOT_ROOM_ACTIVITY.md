@@ -166,8 +166,14 @@ re-authorization callback, so caching crewchat would allow local replay
 after role revocation and before the next network poll. Other ordinary
 room activity remains session-only and is cleared on room transitions.
 
-A legacy host that omits `channel_revision` continues to support normal
-room text, but omission cannot establish private-channel history rights.
+A legacy host that omits `channel_revision` continues to support only
+known public/room event kinds. A group-channel or unrecognized event from
+such a response is rejected *before display* and without cursor advancement.
+A modern authenticated feed may display future unknown event kinds, but
+only an explicit allowlist of known room/public kinds can enter offline
+`history N`; future private message types and case variants never inherit
+cached history rights by default. Missing or nontext event-kind evidence is
+rejected.
 The same client limitation remains: once material has already been printed
 to a terminal, a subsequent role change cannot retract those bytes.
 An idle or disconnected client cannot learn of revocation until another
