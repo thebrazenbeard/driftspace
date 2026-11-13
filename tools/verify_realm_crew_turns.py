@@ -6,6 +6,7 @@ weights, auto-schedule crew, mutate a real world, or assert Wreckforge canon.
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
@@ -220,6 +221,73 @@ def verify(realm_src: Path, worldpack: Path) -> None:
                   "normalized echo proposal was actually evaluated")
             # One held response must not prevent later independent safe actions.
 
+            # An explicitly opted-in synthetic retry may ask once for a
+            # *different* line after a quality rejection, without accepting
+            # the first echo or creating a second action receipt.
+            retry_coordinator = CrewTurnCoordinator(
+                gateway, roster, world_id=WORLD, human_actor_id=HUMAN,
+                public_handles=HANDLES, styles=styles, proposer=model,
+                synthetic_trial=True, max_quality_retries=1,
+            )
+            server.command_queue = [
+                "say TEST_VOICE_Tessa",
+                "say SYNTHETIC_RETRY_RECOVERED_CALAMAR",
+            ]
+            before_retry = len(server.calls)
+            accepted_retry = retry_coordinator.run_speech_turns(
+                ((names[1], "quality-retry-accept"),))
+            check(len(accepted_retry) == 1 and not accepted_retry[0].replayed,
+                  "quality retry committed exactly one host action")
+            check(len(server.calls) == before_retry + 2,
+                  "single approved quality retry made exactly two proposals")
+            check("SYNTHETIC_RETRY_RECOVERED_CALAMAR" in
+                  gateway.engine.act(HUMAN, "history"),
+                  "accepted only the distinct second synthetic proposal")
+            with closing(gateway.engine._connect()) as conn:
+                rows = conn.execute(
+                    "SELECT COUNT(*) FROM action_receipts WHERE actor=? AND action_id=?",
+                    ("@resident:" + names[1], "quality-retry-accept"),
+                ).fetchone()[0]
+                check(rows == 1, "one host receipt after retry")
+            server.command_queue = [
+                "say TEST_VOICE_Tessa",
+                "say TEST_VOICE_Tessa",
+            ]
+            before_retry = len(server.calls)
+            deny(lambda: retry_coordinator.run_speech_turns(
+                ((names[1], "quality-retry-exhausted"),)),
+                ValueError, "two echoes exhaust permitted retry without game mutation")
+            check(len(server.calls) == before_retry + 2,
+                  "quality retry budget never exceeds two model calls")
+            with closing(gateway.engine._connect()) as conn:
+                rows = conn.execute(
+                    "SELECT COUNT(*) FROM action_receipts WHERE actor=? AND action_id=?",
+                    ("@resident:" + names[1], "quality-retry-exhausted"),
+                ).fetchone()[0]
+                check(rows == 0, "exhausted retry made no host receipt")
+
+            previous_calls = len(server.calls)
+            repeated_retry = retry_coordinator.run_speech_turns(
+                ((names[1], "quality-retry-accept"),))
+            check(len(repeated_retry) == 1 and repeated_retry[0].replayed,
+                  "quality-recovered action replays its stored host receipt")
+            check(len(server.calls) == previous_calls,
+                  "quality-recovered replay does not reinfer")
+            server.next_command = "north"
+            previous_calls = len(server.calls)
+            deny(lambda: retry_coordinator.run_speech_turns(
+                ((names[0], "quality-retry-malicious-verb"),)),
+                 ValueError, "optional quality retry cannot turn forbidden movement into a proposal")
+            check(len(server.calls) == previous_calls + 1,
+                  "forbidden verb is never retried as a quality echo")
+            with closing(gateway.engine._connect()) as conn:
+                result = conn.execute(
+                    "SELECT COUNT(*) FROM action_receipts "
+                    "WHERE actor=? AND action_id='quality-retry-malicious-verb'",
+                    ("@resident:" + names[0],),
+                ).fetchone()[0]
+                check(result == 0, "forbidden verb created no host action receipt")
+
             # Model-authored actor override is not an authorized command proposal.
             before = len(server.calls)
             server.next_command = {
@@ -269,6 +337,68 @@ def verify(realm_src: Path, worldpack: Path) -> None:
             check(reloaded.run_speech_turns(((names[1], "after-foreign-world"),))[0].replayed,
                   "host receipt survives coordinator restart")
             check(len(server.calls) == before, "restart replay does not reinfer")
+
+            # Two coordinator objects pointing at the same model endpoint
+            # must not issue simultaneous inference against the single
+            # constrained local worker (even if their proposer objects differ).
+            entered = threading.Event()
+            release = threading.Event()
+            previous = len(server.calls)
+            def hold_first_model(_scene):
+                entered.set()
+                if not release.wait(3):
+                    raise AssertionError("inference fixture was not released")
+            server.before_reply = hold_first_model
+            server.command_queue = ["say SYNTHETIC_SINGLEFLIGHT_FIRST",
+                                    "say SYNTHETIC_SINGLEFLIGHT_SECOND"]
+            separate_proposer = LocalChatProposer(model.config)
+            other_coordinator = create(separate_proposer)
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                first = pool.submit(coordinator.run_speech_turns,
+                                    ((names[0], "singleflight-first"),))
+                try:
+                    check(entered.wait(2), "first inference reached blocking fixture")
+                    deny(lambda: other_coordinator.run_speech_turns(
+                        ((names[1], "singleflight-second"),)),
+                        RuntimeError, "simultaneous shared model request fails closed")
+                    check(len(server.calls) == previous + 1,
+                          "busy second caller made no model HTTP request")
+                finally:
+                    release.set()
+                check(len(first.result(timeout=3)) == 1,
+                      "first inference committed after release")
+            accepted = other_coordinator.run_speech_turns(
+                ((names[1], "singleflight-second"),))
+            check(len(accepted) == 1 and not accepted[0].replayed,
+                  "second model request succeeds after singleflight is released")
+            check(len(server.calls) == previous + 2,
+                  "exactly two inference requests made sequentially")
+
+            # Different names inserted into the same sentence must not
+            # masquerade as different NPC voices. The previous real Granite
+            # sample reproduced exactly this failure.
+            server.command_queue = [
+                "say Welcome aboard, SyntheticTessa. Test sensor ready.",
+                "say Welcome aboard, SyntheticCalamar. Test sensor ready.",
+            ]
+            before_template = len(server.calls)
+            first_template = coordinator.run_speech_turns(
+                ((names[0], "template-name-source"),))
+            check(len(first_template) == 1 and not first_template[0].replayed,
+                  "first unique template is a valid host action")
+            deny(lambda: coordinator.run_speech_turns(
+                ((names[1], "template-name-echo"),)),
+                 ValueError, "name substitution is not a new character voice")
+            check(len(server.calls) == before_template + 2,
+                  "second named template was actually proposed")
+            with closing(gateway.engine._connect()) as conn:
+                count = conn.execute(
+                    "SELECT COUNT(*) FROM action_receipts "
+                    "WHERE actor=? AND action_id='template-name-echo'",
+                    ("@resident:" + names[1],),
+                ).fetchone()[0]
+                check(count == 0, "renamed template never committed second host receipt")
+
 
     finally:
         server.shutdown()
