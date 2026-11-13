@@ -146,3 +146,35 @@ watcher remains an explicit `watch on` operation.
 malformed, Unicode-whitespace, URL failure, 503, and 401/403 cases. This is
 a source-only pilot change. A successful hosted source suite does not prove
 that the separately deployed private VN2 Telnet bridge has incorporated it.
+
+## Host-owned channel revision and local history invalidation
+
+REALM main supplies a monotonic, host-issued `channel_revision` on each
+authenticated `/api/v1/feed` response. Its value changes when the host grants,
+alters or revokes that actor's private-group membership; this can happen with
+**zero newly visible events**. The private Driftspace activity reader now
+validates this revision and clears its session-local history whenever a
+previously observed value changes or disappears. A backward revision or
+malformed value fails closed without advancing the feed cursor. Direct HTTP
+401/403 authorization denials and 409 host-channel epoch conflicts also
+invalidate cached session text before the exception propagates.
+
+A newly authorized crew-channel message may be displayed immediately from
+REALM's authenticated feed, but it is **never cached** in the terminal's
+offline `history N` buffer. That is deliberate: `history N` has no live
+re-authorization callback, so caching crewchat would allow local replay
+after role revocation and before the next network poll. Other ordinary
+room activity remains session-only and is cleared on room transitions.
+
+A legacy host that omits `channel_revision` continues to support normal
+room text, but omission cannot establish private-channel history rights.
+The same client limitation remains: once material has already been printed
+to a terminal, a subsequent role change cannot retract those bytes.
+An idle or disconnected client cannot learn of revocation until another
+authenticated feed attempt or host-side connection termination. This is a
+local privacy hardening of the **source candidate**, not proof that the
+deployed VN2 terminal uses this reader or that public multiplayer is safe.
+
+`tests/test_room_channel_revision.py` covers ordinary/legacy room history,
+zero-event permission changes, non-retention of delivered crewchat, backward
+and malformed access revisions, and direct HTTP denial/conflict paths.
