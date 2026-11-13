@@ -122,3 +122,27 @@ on/off, invalid commands, pre-join/pre-entry confidentiality, room movement,
 typed-command preservation, scoped history, and disconnect. This is a
 private **poll-to-terminal** prototype, not socket-push from REALM, public
 multiplayer, or any live AI crew behavior.
+
+## Private terminal command and gateway-failure qualification
+
+The local `listen` and `history [N]` dispatcher now recognizes whitespace
+between the verb and its optional count, including tabs and line breaks, so
+these commands are never passed to the generic REALM fallback by accident.
+An invalid `listen` argument or invalid `history` count fails locally.
+The current REALM command parser also splits on literal spaces, so this
+correction does **not** demonstrate an existing historical-message leak;
+it enforces the pilot's private-history boundary across parser revisions.
+
+Automatic `RoomWatch` fetches now count transient `OSError`/URL and HTTP
+transport failures in the same three-attempt budget as malformed feed data.
+The resulting pause text excludes network exception details and does not
+advance the session feed cursor. HTTP **401/403 authentication denials** and local **PermissionError**
+access denials are *not* downgraded into transient failures: they propagate to the authenticated
+terminal owner to handle the revoked/forbidden credential. This wrapper does
+not itself reauthenticate or authorize a player. Re-enabling a paused
+watcher remains an explicit `watch on` operation.
+
+`tests/test_room_activity.py` and `tests/test_room_watch.py` cover normal,
+malformed, Unicode-whitespace, URL failure, 503, and 401/403 cases. This is
+a source-only pilot change. A successful hosted source suite does not prove
+that the separately deployed private VN2 Telnet bridge has incorporated it.

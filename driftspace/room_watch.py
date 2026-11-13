@@ -6,6 +6,7 @@ host-authenticated feed callback and entry cursor enforce this pilot's scope.
 from __future__ import annotations
 
 from typing import Callable
+from urllib.error import HTTPError
 from .room_activity import RoomActivity
 
 
@@ -45,7 +46,12 @@ class RoomWatch:
             return None
         try:
             result = self.activity.listen(self.authenticated_get)
-        except (RuntimeError, ValueError, TimeoutError):
+        except (RuntimeError, ValueError, OSError) as error:
+            # Authorization denial is not a transient gateway hiccup. The
+            # authenticated terminal owner must handle it, not keep polling.
+            if (isinstance(error, PermissionError) or
+                    (isinstance(error, HTTPError) and error.code in (401, 403))):
+                raise
             self._consecutive_errors += 1
             if self._consecutive_errors >= 3:
                 self.enabled = False
