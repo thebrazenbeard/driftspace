@@ -3,7 +3,6 @@ name: Driftspace source regression
 
 on:
   pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
