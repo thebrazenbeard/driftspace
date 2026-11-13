@@ -73,9 +73,10 @@ class RoomActivity:
         self._channel_revision: int | None = None
 
     def invalidate_history(self) -> None:
-        """Discard buffered display text whenever current access is uncertain."""
+        """Discard cached text without forgetting the last trusted host epoch."""
         self._recent.clear()
-        self._channel_revision = None
+        # The watermark survives failed polls: otherwise a second replay of
+        # the same regressed epoch would be incorrectly accepted as "first".
 
     @staticmethod
     def _safe(text: object) -> str:
