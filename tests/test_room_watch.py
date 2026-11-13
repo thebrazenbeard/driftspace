@@ -89,6 +89,16 @@ class RoomWatchTests(unittest.TestCase):
                 self.assertEqual(3, len(calls))
                 self.assertEqual(8, state.cursor)
 
+    def test_local_permission_failure_is_not_treated_as_gateway_outage(self):
+        activity = RoomActivity("Rylok", 8)
+        def denied(path):
+            raise PermissionError("host file or credential access denied")
+        watcher = RoomWatch(activity, denied)
+        with self.assertRaises(PermissionError):
+            watcher.poll()
+        self.assertEqual(0, watcher._consecutive_errors)
+        self.assertEqual(8, activity.cursor)
+
     def test_authentication_denial_is_propagated_not_silently_retried(self):
         # A revoked bearer must not be treated as ordinary transient trouble.
         for status in (401, 403):
