@@ -148,3 +148,88 @@ action receipt, not assume all-or-nothing six-actor transactions. A server
 replay, prompt injection, secret leakage, cross-world memory and poor dialogue
 remain independent failure modes to test. None of this has been installed in
 the running private VN2 Driftspace world.
+
+## Next hostile trial: single-flight, retries and real voice falsifiers (2026-11-13)
+
+All changes in this section are **synthetic-only**, opt-in, and source-level.
+They do not change the actual Rylok world or activate any Wreckforge character.
+
+**Same-process inference admission:** a shared local model endpoint can have
+only one outstanding Driftspace crew batch at a time, even if two independent
+coordinators use different `LocalChatProposer` objects pointing at it. A
+simultaneous second request fails closed with a retryable busy error. The
+first batch retains its exact host receipt and releases the lock on success
+*or failure*. This is *not* cross-process admission, a distributed lease,
+or a scheduler. The test first proved the pre-fix concurrency defect with
+two actual overlapping loopback HTTP requests, then passed after the change.
+
+**Optional quality retry:** `max_quality_retries=0` is the conservative
+default. The trusted synthetic host may opt in to **one** additional proposal
+if a candidate repeats a room/batch dialogue template. No rejected draft
+is committed, copied into the next prompt, or granted authority. The second
+proposal is held to the same host actor, scene, `say`-only permission and
+stable action receipt. A second echo fails. Malformed and forbidden verbs
+are *not* retried and never become authorized by this mechanism. At most
+two model requests can occur for the one attempted turn, which may double
+CPU latency.
+
+**Name-substitution falsifier:** in a real shared-room two-character test,
+a one-retry policy initially produced two different strings but the exact
+same greeting template, substituting `SyntheticCalamar` for
+`SyntheticTessa`. The earlier exact-string uniqueness counter would
+have misclassified this as two voices. A synthetic-only, conservative
+name-masking comparison now detects this obvious template reuse both in
+recent authorized room dialogue and between pre-snapshotted same-batch
+proposals. The associated game-effect regression **failed before** and
+passed after the correction. This matcher may reject legitimate repeated
+boilerplate and cannot prove literary distinctiveness; it is a bounded
+negative control, not a classifier for approved canon characters.
+
+**Real post-fix observation:** the two-character shared-room trial with
+`--max-quality-retries 1 --max-actors 2` made **three** local Granite
+model requests. Tessa's speech committed and replayed; Calamar's initial
+echo and subsequent renamed copy were rejected, leaving **one accepted**
+speaker. The script correctly reported an unsuccessful two-voice trial.
+The model inputs remained actor-bound and distinct. No dropped rejection
+was converted into a success record.
+
+**Isolated context experiment:** `tools/qualify_isolated_voice.py` constructs
+two entirely separate synthetic SQLite worlds, each with identical geometry
+and the same captain message. Neither actor receives the other's dialogue.
+An existing Granite 3.3 2B worker generated different sentences for Tessa
+and Calamar in this condition, identifying earlier room speech as a
+material contributor to the observed echoing. But it still ignored parts
+of the synthetic persona instructions. A second, explicit first-person
+style variant caused Tessa to mention a gyroscope and Calamar a sterile
+flask, yet Tessa spoke without first-person phrasing and Calamar made a
+statement rather than the required question. Under the full typed
+synthetic style rubric (topic, greeting avoidance, self-address, first-person
+voice, sentence form), **neither response passes**. These are two single
+samples, not blinded character evaluation, and the styles are invented
+experimental prompts rather than the author's real crew personalities.
+
+Rerun the isolated test only with an operator-approved already-running
+literal-loopback model and sufficient available host RAM:
+
+```sh
+python tools/qualify_isolated_voice.py \
+  --allow-existing-loopback-model --variant directive \
+  --realm-src /trusted/REALM/src \
+  --endpoint http://127.0.0.1:LOCAL_PORT/v1/chat/completions \
+  --model approved-local-model-id
+```
+
+The stand-alone script reports proposals, actor-bound input hashes,
+status, elapsed time and explicit rubric flags; it **exits 2** unless both
+requested synthetic styles pass the declared rubric, so an HTTP 200 or
+accepted host receipt cannot be silently counted as voice success. It does
+not train, fine-tune, install a service, publish character source, or
+classify real Wreckforge speech as canon.
+
+**Release ceiling:** one shared 2B CPU inference endpoint is technically
+usable for a disposable real speech turn; the **six-character identity,
+memory, voice and throughput acceptance criteria remain unmet**. The game
+host must continue to reject unauthorized effects. REALM NPC reservation,
+credential/session race holds, continuity custody, approved character
+dialogue sources, public transport, memory privacy and deployment approval
+are independent gates.
