@@ -73,6 +73,17 @@ class ChannelRevisionPrivacyTests(unittest.TestCase):
         self.assertEqual(4, self.activity.cursor)
         self.assertEqual("No recent activity in this room.", self.activity.history())
 
+    def test_epoch_rollback_remains_denied_on_repeated_poll(self):
+        # Rejecting one stale response is insufficient if clearing cached
+        # text also forgets the highest host-issued epoch ever observed.
+        self.seed()
+        stale = self.feed(cursor=4, revision=9, events=[])
+        for attempt in range(2):
+            with self.subTest(attempt=attempt), self.assertRaises(ValueError):
+                self.activity.listen(lambda _: stale)
+        self.assertEqual(4, self.activity.cursor)
+        self.assertEqual("No recent activity in this room.", self.activity.history())
+
     def test_missing_or_malformed_epoch_never_preserves_old_cache(self):
         for marker in ("missing", None, True, -1, "12"):
             with self.subTest(marker=marker):
