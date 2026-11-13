@@ -30,7 +30,7 @@ def main(args: argparse.Namespace) -> None:
 
     sys.path.insert(0, str(args.realm_src.resolve()))
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from driftspace.crew_turns import CrewTurnCoordinator
+    from driftspace.crew_turns import CrewTurnCoordinator, _synthetic_voice_template_key
     from realm.gateway import Gateway
     from realm.npc_local_model import LocalChatConfig, LocalChatProposer
     from realm.principal_roles import reserve_npc
@@ -83,6 +83,7 @@ def main(args: argparse.Namespace) -> None:
         "realm_source": args.realm_src.name,
         "world": WORLD, "model_requests": 0,
         "tested_actors": len(tested_actors),
+        "max_quality_retries": args.max_quality_retries,
         "rss_kib_before": _rss_kib(args.model_pid) if args.model_pid else None,
         "mem_available_kib_before": _mem_available_kib(),
         "results": [],
@@ -107,6 +108,7 @@ def main(args: argparse.Namespace) -> None:
             host, roster, world_id=WORLD,
             human_actor_id=HUMAN, public_handles=HANDLES,
             styles=styles, proposer=model, synthetic_trial=True,
+            max_quality_retries=args.max_quality_retries,
         )
         rejected_captain = False
         try:
@@ -158,10 +160,10 @@ def main(args: argparse.Namespace) -> None:
     report["model_requests"] = model.requests
     report["observed_model_inputs"] = model.model_inputs
     report["model_inputs_bound_to_correct_actor"] = all(
-        source["scene_actor"] == actor
-        and source["public_handle"] == HANDLES[actor]
-        for source, actor in zip(model.model_inputs, tested_actors)
-    ) and len(model.model_inputs) == len(tested_actors)
+        source["scene_actor"] in tested_actors
+        and source["public_handle"] == HANDLES[source["scene_actor"]]
+        for source in model.model_inputs
+    ) and len(model.model_inputs) >= len(tested_actors)
     report["observed_model_latency_s"] = model.latencies_s
     report["model_latency_median_s"] = (round(statistics.median(model.latencies_s), 3)
                                       if model.latencies_s else None)
@@ -170,6 +172,11 @@ def main(args: argparse.Namespace) -> None:
                      if v["status"] == "ACCEPTED"]
     report["distinct_accepted_utterances"] = len(set(accepted_text))
     report["exact_duplicate_utterances"] = len(accepted_text) - len(set(accepted_text))
+    masked = [_synthetic_voice_template_key(value) for value in accepted_text]
+    report["distinct_name_masked_templates"] = len(set(masked))
+    report["name_substitution_only_differences"] = (
+        len(set(accepted_text)) - len(set(masked))
+    )
     report["rss_kib_after"] = _rss_kib(args.model_pid) if args.model_pid else None
     report["mem_available_kib_after"] = _mem_available_kib()
     report["note"] = (
@@ -179,6 +186,7 @@ def main(args: argparse.Namespace) -> None:
     print(json.dumps(report, sort_keys=True))
     if (report["accepted_count"] != len(tested_actors)
             or report["distinct_accepted_utterances"] != len(tested_actors)
+            or report["distinct_name_masked_templates"] != len(tested_actors)
             or not report["model_inputs_bound_to_correct_actor"]):
         raise SystemExit(2)
 
@@ -193,4 +201,5 @@ if __name__ == "__main__":
     ap.add_argument("--timeout", type=float, default=40)
     ap.add_argument("--max-tokens", type=int, default=96)
     ap.add_argument("--max-actors", type=int, choices=range(1, 7), default=6)
+    ap.add_argument("--max-quality-retries", type=int, choices=(0,1), default=0)
     main(ap.parse_args())
