@@ -125,6 +125,12 @@ class RoomActivity:
             self.invalidate_history()
             raise ValueError("Invalid channel-access revision")
         previous_revision = self._channel_revision
+        if previous_revision is not None and revision is None:
+            # A host that has issued a trusted permission epoch cannot
+            # silently downgrade to an unverifiable legacy feed. Retain the
+            # last known epoch so retries cannot reset this decision.
+            self.invalidate_history()
+            raise ValueError("Authenticated channel-access revision disappeared")
         if previous_revision is not None and revision != previous_revision:
             # Permission change is meaningful even with zero returned events.
             self.invalidate_history()
