@@ -20,6 +20,7 @@ from urllib.request import Request, urlopen
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from driftspace.room_activity import RoomActivity, gateway_room_cursor
+from driftspace.room_watch import RoomWatch
 
 
 def verify(realm_src: Path) -> int:
@@ -135,17 +136,20 @@ def verify(realm_src: Path) -> int:
 
             gateway.feed = changing_feed
             previous_cursor = activity.cursor
+            watcher = RoomWatch(activity, captain_get)
             try:
                 try:
-                    activity.listen(captain_get)
+                    watcher.poll()
                 except HTTPError as exc:
                     with closing(exc):
-                        expect("HTTP host detects mid-response epoch conflict",
+                        expect("HTTP host epoch conflict reaches room watcher",
                                exc.code == 409)
                 else:
-                    raise AssertionError("Host did not reject membership race")
+                    raise AssertionError("Room watch suppressed host channel conflict")
             finally:
                 gateway.feed = original_feed
+            expect("HTTP 409 does not consume transient outage budget",
+                   watcher.enabled and watcher._consecutive_errors == 0)
             expect("HTTP 409 does not advance session feed cursor",
                    activity.cursor == previous_cursor)
             expect("HTTP 409 clears old session display cache",
