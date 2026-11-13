@@ -16,6 +16,16 @@ _MAX_RECORDS = 50
 _MAX_RESPONSE_EVENTS = 100
 _MAX_TEXT = 500
 
+# Only explicitly recognized public/room events can be replayed offline.
+# REALM remains authoritative for current-room membership and event scope.
+# New private channel kinds must not automatically inherit history privileges.
+_CACHEABLE_EVENT_KINDS = frozenset({
+    "join", "move", "leave", "say", "emote",
+    "take", "drop", "give", "gather", "craft", "build",
+    "ooc", "pvp_hit", "pvp_death",
+    "political_offer", "political_pledge", "political_break",
+})
+
 
 def parse_activity_command(command: str) -> tuple[str, int] | None:
     """Intercept *all* listen/history verbs to prevent legacy history leakage."""
@@ -141,6 +151,13 @@ class RoomActivity:
             ):
                 raise ValueError("Nonmonotonic or replayed room event")
             previous = event_id
+            kind = event.get("kind")
+            if type(kind) is not str or not 1 <= len(kind) <= 64:
+                raise ValueError("Unclassified room activity event")
+            if revision is None and kind not in _CACHEABLE_EVENT_KINDS:
+                # A legacy response provides no current host membership epoch.
+                # It may display known room events, not unknown/group events.
+                raise ValueError("Private event without host channel revision")
             actor = self._safe(event.get("actor"))
             message = self._safe(event.get("text"))
             if not actor or not message:
@@ -148,10 +165,10 @@ class RoomActivity:
             if actor.casefold() == self.actor.casefold():
                 continue
             fresh.append(message)
-            # A cached offline group message could be reread after the member
-            # was revoked but before another authenticated poll. Do not retain
-            # any crewchat in local session history, even while authorized.
-            if event.get("kind") != "crewchat":
+            # Offline history only stores public/room kinds recognized by
+            # this version. Crewchat and future unknown kinds are display-only
+            # even when the authenticated host currently allows seeing them.
+            if kind in _CACHEABLE_EVENT_KINDS:
                 retainable.append(message)
         # Commit cursor and revision only after every event validates.
         self.cursor = cursor
