@@ -1,5 +1,6 @@
 """Automatic room notifications for the private, Rylok-only terminal pilot."""
 import unittest
+from urllib.error import HTTPError, URLError
 
 from driftspace.room_activity import RoomActivity
 from driftspace.room_watch import RoomWatch, parse_watch_command
@@ -64,6 +65,42 @@ class RoomWatchTests(unittest.TestCase):
         self.assertIsNone(watcher.poll())
         self.assertEqual(3,len(calls))
         self.assertEqual(8,activity.cursor)
+
+    def test_transient_gateway_network_errors_count_toward_bounded_pause(self):
+        for kind in ("socket", "url", "http503"):
+            with self.subTest(kind=kind):
+                calls = []
+                def get(path):
+                    calls.append(path)
+                    if kind == "socket":
+                        raise OSError("secret socket diagnostic")
+                    if kind == "url":
+                        raise URLError("secret connection detail")
+                    raise HTTPError("http://localhost/private", 503,
+                                    "secret internal response", {}, None)
+                state = RoomActivity("Rylok", 8)
+                watcher = RoomWatch(state, get)
+                self.assertIsNone(watcher.poll())
+                self.assertIsNone(watcher.poll())
+                notice = watcher.poll()
+                self.assertIn("paused", notice)
+                self.assertNotIn("secret", notice)
+                self.assertFalse(watcher.enabled)
+                self.assertEqual(3, len(calls))
+                self.assertEqual(8, state.cursor)
+
+    def test_authentication_denial_is_propagated_not_silently_retried(self):
+        # A revoked bearer must not be treated as ordinary transient trouble.
+        for status in (401, 403):
+            with self.subTest(status=status):
+                def denied(path):
+                    raise HTTPError("http://localhost/private", status,
+                                    "authentication failed", {}, None)
+                watcher = RoomWatch(RoomActivity("Rylok", 10), denied)
+                with self.assertRaises(HTTPError):
+                    watcher.poll()
+                self.assertEqual(0, watcher._consecutive_errors)
+                self.assertEqual(10, watcher.activity.cursor)
 
     def test_moving_rooms_clears_session_history_and_filters_own_echo(self):
         activity=RoomActivity("Rylok",4)
