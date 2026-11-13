@@ -84,6 +84,21 @@ class ChannelRevisionPrivacyTests(unittest.TestCase):
         self.assertEqual(4, self.activity.cursor)
         self.assertEqual("No recent activity in this room.", self.activity.history())
 
+    def test_modern_host_epoch_cannot_silently_downgrade_to_legacy(self):
+        # Once a trusted host has issued a revision, absent revision evidence
+        # must not reset the watermark and start a new legacy cache.
+        self.seed()
+        missing = self.feed(cursor=5, include_revision=False, events=[
+            {"id": 5, "actor": "Visitor", "kind": "say",
+             "text": "Visitor: text after unproven downgrade"},
+        ])
+        for attempt in range(2):
+            with self.subTest(attempt=attempt), self.assertRaises(ValueError):
+                self.activity.listen(lambda _: missing)
+        self.assertEqual(4, self.activity.cursor)
+        self.assertEqual(10, self.activity._channel_revision)
+        self.assertEqual("No recent activity in this room.", self.activity.history())
+
     def test_missing_or_malformed_epoch_never_preserves_old_cache(self):
         for marker in ("missing", None, True, -1, "12"):
             with self.subTest(marker=marker):
@@ -93,12 +108,8 @@ class ChannelRevisionPrivacyTests(unittest.TestCase):
                     cursor=4, revision=marker,
                     include_revision=marker != "missing", events=[],
                 )
-                if marker == "missing":
-                    self.assertEqual("No new room activity.",
-                                     self.activity.listen(lambda _: value))
-                else:
-                    with self.assertRaises(ValueError):
-                        self.activity.listen(lambda _: value)
+                with self.assertRaises(ValueError):
+                    self.activity.listen(lambda _: value)
                 self.assertEqual(4, self.activity.cursor)
                 self.assertEqual("No recent activity in this room.",
                                  self.activity.history())
