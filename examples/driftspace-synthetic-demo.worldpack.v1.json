@@ -1,0 +1,56 @@
+{
+  "schema": "realm.worldpack.v1",
+  "world_id": "driftspace-synthetic-demo",
+  "name": "Driftspace Synthetic Integration Demo (Not Canon)",
+  "start_room": "arrival_platform",
+  "rooms": [
+    {
+      "id": "arrival_platform",
+      "name": "Arrival Platform",
+      "description": "A low vibration climbs through the deck plates as cargo magnets cycle beneath your boots. An arrivals board scrolls berth numbers in half a dozen borrowed scripts; its bottom line is frozen on an overdue docking notice. Beyond the scuffed yellow safety stripe, a freighter's shadow crosses the frosted ceiling panels. The air tastes faintly of copper and ionized dust. East, an amber beacon washes the passage toward the exchange in slow pulses.",
+      "exits": {
+        "east": "exchange_hall"
+      }
+    },
+    {
+      "id": "exchange_hall",
+      "name": "Exchange Hall",
+      "description": "Shuttered vendor stalls encircle the exchange like teeth around an empty mouth. Their signs have been repainted so many times that old trade marks show through the newer enamel. An advertisement flickers between an exuberant merchant and a dead black screen, illuminating trolley scars cut deep into the deck. The station ought to be noisy here, but the only reply is coolant rushing behind the wall. Corridors lead west to arrivals, north to the service bay, and south toward the viewing glass.",
+      "exits": {
+        "west": "arrival_platform",
+        "north": "service_bay",
+        "south": "viewing_gallery"
+      }
+    },
+    {
+      "id": "service_bay",
+      "name": "Service Bay",
+      "description": "Heat from an idle manifold lingers in the service bay, carrying the dry smell of machine oil and hot insulation. Open tool cradles hang over benches gouged by years of stripped fasteners; wire tags swing behind mesh locker doors whenever the ventilation kicks in. A work lamp keeps trying to ignite, briefly turning every steel edge copper before surrendering to grey. The hatch south returns to the exchange. There is no functioning repair bench in this trial.",
+      "exits": {
+        "south": "exchange_hall"
+      }
+    },
+    {
+      "id": "viewing_gallery",
+      "name": "Viewing Gallery",
+      "description": "The viewing pane stretches across the gallery's outer bulkhead, its lower edge stippled with tiny impact scars. Beyond the glass, a field of stars hangs almost motionless; a broken navigation overlay keeps circling an empty coordinate. A chair lies on its side beside an abandoned cup, still caught in the shallow magnetic grip of the deck. Someone stopped watching in the middle of a shift. Faint floor lights trace a path north, back to the exchange.",
+      "exits": {
+        "north": "exchange_hall"
+      }
+    }
+  ],
+  "items": [
+    {
+      "id": "test_lamp",
+      "name": "Test Lamp",
+      "description": "A portable light for verifying take and inventory actions.",
+      "room": "service_bay"
+    },
+    {
+      "id": "test_badge",
+      "name": "Test Badge",
+      "description": "A blank badge with no authorization privileges.",
+      "room": "arrival_platform"
+    }
+  ]
+}
