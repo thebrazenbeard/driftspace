@@ -119,6 +119,48 @@ class ChannelRevisionPrivacyTests(unittest.TestCase):
                 self.assertEqual("No recent activity in this room.",
                                  self.activity.history())
 
+    def test_legacy_feed_refuses_private_and_unrecognized_event_types(self):
+        for kind in ("crewchat", "CrewChat", "future_private_channel"):
+            with self.subTest(kind=kind):
+                activity = RoomActivity("Rylok", 3)
+                response = self.feed(
+                    cursor=4, include_revision=False,
+                    events=[{"id": 4, "actor": "Crewmate",
+                             "kind": kind, "text": "Synthetic private words"}],
+                )
+                with self.assertRaises(ValueError):
+                    activity.listen(lambda _: response)
+                self.assertEqual(3, activity.cursor)
+                self.assertEqual("No recent activity in this room.",
+                                 activity.history())
+
+    def test_future_private_event_and_case_variant_never_enter_offline_cache(self):
+        response = self.feed(cursor=6, events=[
+            {"id": 4, "actor": "Crewmate", "kind": "CrewChat",
+             "text": "Synthetic variant private words"},
+            {"id": 5, "actor": "Crewmate", "kind": "future_private_channel",
+             "text": "Synthetic future private words"},
+            {"id": 6, "actor": "Visitor", "kind": "say",
+             "text": "Visitor: ordinary room words"},
+        ])
+        displayed = self.activity.listen(lambda _: response)
+        self.assertIn("Synthetic variant private words", displayed)
+        self.assertIn("Synthetic future private words", displayed)
+        self.assertIn("ordinary room words", displayed)
+        cached = self.activity.history(50)
+        self.assertNotIn("Synthetic", cached)
+        self.assertIn("ordinary room words", cached)
+
+    def test_missing_event_kind_is_malformed_not_cacheable(self):
+        response = self.feed(cursor=4, events=[
+            {"id": 4, "actor": "Crewmate", "text": "Undifferentiated private text"},
+        ])
+        with self.assertRaises(ValueError):
+            self.activity.listen(lambda _: response)
+        self.assertEqual(3, self.activity.cursor)
+        self.assertEqual("No recent activity in this room.",
+                         self.activity.history())
+
     def test_legacy_feed_still_replays_only_plain_room_activity(self):
         old = self.feed(cursor=4, include_revision=False, events=[{
             "id": 4, "actor": "Visitor", "kind": "say",
