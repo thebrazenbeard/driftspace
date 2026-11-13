@@ -101,6 +101,23 @@ class RoomActivityTests(unittest.TestCase):
             with self.subTest(raw=raw), self.assertRaises(ValueError):
                 parse_activity_command(raw)
 
+    def test_whitespace_separated_history_stays_in_the_private_interceptor(self):
+        # A future REALM verb parser may accept whitespace that was formerly
+        # rejected. No history/listen variant may bypass this session reader.
+        for raw, expected in (
+            ("history\\t2", ("history", 2)),
+            (" HISTORY\\n3 ", ("history", 3)),
+            ("history\\u00a04", ("history", 4)),
+            (" \\tlisten\\t", ("listen", 10)),
+        ):
+            with self.subTest(raw=repr(raw)):
+                self.assertEqual(expected, parse_activity_command(raw))
+        for raw in ("listen\\t5", "LISTEN\\nany", "history\\t0",
+                    "history\\n51", "history\\tword"):
+            with self.subTest(raw=repr(raw)), self.assertRaises(ValueError):
+                parse_activity_command(raw)
+        self.assertIsNone(parse_activity_command("historybook"))
+
     def test_help_does_not_promise_pre_entry_history(self):
         from driftspace.terminal_ui import MUD_HELP
         self.assertIn("listen (new room activity)", MUD_HELP)
