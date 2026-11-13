@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from collections import deque
 import re
+from urllib.error import HTTPError
 from typing import Callable
 
 
@@ -14,6 +15,16 @@ _CONTROL = re.compile(r"[\x00-\x1f\x7f-\x9f]")
 _MAX_RECORDS = 50
 _MAX_RESPONSE_EVENTS = 100
 _MAX_TEXT = 500
+
+# Only explicitly recognized public/room events can be replayed offline.
+# REALM remains authoritative for current-room membership and event scope.
+# New private channel kinds must not automatically inherit history privileges.
+_CACHEABLE_EVENT_KINDS = frozenset({
+    "join", "move", "leave", "say", "emote",
+    "take", "drop", "give", "gather", "craft", "build",
+    "ooc", "pvp_hit", "pvp_death",
+    "political_offer", "political_pledge", "political_break",
+})
 
 
 def parse_activity_command(command: str) -> tuple[str, int] | None:
@@ -67,6 +78,15 @@ class RoomActivity:
         self.actor = actor
         self.cursor = cursor
         self._recent: deque[str] = deque(maxlen=_MAX_RECORDS)
+        # A trusted REALM feed changes this host-issued watermark on every
+        # crew membership/role mutation, even when no new messages are visible.
+        self._channel_revision: int | None = None
+
+    def invalidate_history(self) -> None:
+        """Discard cached text without forgetting the last trusted host epoch."""
+        self._recent.clear()
+        # The watermark survives failed polls: otherwise a second replay of
+        # the same regressed epoch would be incorrectly accepted as "first".
 
     @staticmethod
     def _safe(text: object) -> str:
@@ -86,9 +106,36 @@ class RoomActivity:
         The gateway callback must use the already-authenticated player's bearer.
         It must never accept a client-provided player id or cursor.
         """
-        response = authenticated_get(f"/api/v1/feed?after={self.cursor}")
+        try:
+            response = authenticated_get(f"/api/v1/feed?after={self.cursor}")
+        except (HTTPError, PermissionError) as exc:
+            # A failed or conflicting authenticated host response cannot
+            # validate previously displayed private channel material.
+            if (isinstance(exc, PermissionError) or
+                    (isinstance(exc, HTTPError) and exc.code in (401, 403, 409))):
+                self.invalidate_history()
+            raise
         if not isinstance(response, dict) or response.get("ok") is not True:
             raise ValueError("Authenticated room activity unavailable")
+        # Legacy feeds may omit this field; they cannot authorize caching
+        # group messages. A modern feed must return an actual monotonic int.
+        revision = response.get("channel_revision")
+        if "channel_revision" in response and (
+                type(revision) is not int or revision < 0):
+            self.invalidate_history()
+            raise ValueError("Invalid channel-access revision")
+        previous_revision = self._channel_revision
+        if previous_revision is not None and revision is None:
+            # A host that has issued a trusted permission epoch cannot
+            # silently downgrade to an unverifiable legacy feed. Retain the
+            # last known epoch so retries cannot reset this decision.
+            self.invalidate_history()
+            raise ValueError("Authenticated channel-access revision disappeared")
+        if previous_revision is not None and revision != previous_revision:
+            # Permission change is meaningful even with zero returned events.
+            self.invalidate_history()
+            if revision is not None and revision < previous_revision:
+                raise ValueError("Channel-access revision regressed")
         cursor = response.get("cursor")
         events = response.get("events")
         if (
@@ -98,6 +145,7 @@ class RoomActivity:
         ):
             raise ValueError("Malformed room activity response")
         fresh: list[str] = []
+        retainable: list[str] = []
         previous = self.cursor
         for event in events:
             if not isinstance(event, dict):
@@ -109,6 +157,13 @@ class RoomActivity:
             ):
                 raise ValueError("Nonmonotonic or replayed room event")
             previous = event_id
+            kind = event.get("kind")
+            if type(kind) is not str or not 1 <= len(kind) <= 64:
+                raise ValueError("Unclassified room activity event")
+            if revision is None and kind not in _CACHEABLE_EVENT_KINDS:
+                # A legacy response provides no current host membership epoch.
+                # It may display known room events, not unknown/group events.
+                raise ValueError("Private event without host channel revision")
             actor = self._safe(event.get("actor"))
             message = self._safe(event.get("text"))
             if not actor or not message:
@@ -116,9 +171,15 @@ class RoomActivity:
             if actor.casefold() == self.actor.casefold():
                 continue
             fresh.append(message)
-        # Commit cursor only after every supplied event has passed validation.
+            # Offline history only stores public/room kinds recognized by
+            # this version. Crewchat and future unknown kinds are display-only
+            # even when the authenticated host currently allows seeing them.
+            if kind in _CACHEABLE_EVENT_KINDS:
+                retainable.append(message)
+        # Commit cursor and revision only after every event validates.
         self.cursor = cursor
-        self._recent.extend(fresh)
+        self._channel_revision = revision
+        self._recent.extend(retainable)
         return "\n".join(fresh) if fresh else "No new room activity."
 
     def history(self, count: int = 10) -> str:

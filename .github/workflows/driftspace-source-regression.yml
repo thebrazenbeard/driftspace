@@ -26,6 +26,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Checkout exact public REALM host contract
+        uses: actions/checkout@v4
+        with:
+          repository: thebrazenbeard/REALM
+          ref: 77e46517b5ea5d44e2dcbc408211dadc7c7808a1
+          path: _qualified_realm
+          persist-credentials: false
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -39,3 +46,9 @@ jobs:
       - name: Optimized assertions retained
         shell: bash
         run: python -O -m unittest discover -s tests -q
+      - name: Real authenticated REALM channel epoch regression
+        shell: bash
+        run: python tools/verify_realm_channel_revision.py --realm-src _qualified_realm/src
+      - name: Optimized authenticated REALM channel regression
+        shell: bash
+        run: python -O tools/verify_realm_channel_revision.py --realm-src _qualified_realm/src

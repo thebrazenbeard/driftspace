@@ -47,10 +47,11 @@ class RoomWatch:
         try:
             result = self.activity.listen(self.authenticated_get)
         except (RuntimeError, ValueError, OSError) as error:
-            # Authorization denial is not a transient gateway hiccup. The
-            # authenticated terminal owner must handle it, not keep polling.
+            # Authentication denial or a changed channel-authorization epoch is
+            # not a transient outage. Propagate it to the trusted terminal
+            # caller instead of silently consuming the three-error budget.
             if (isinstance(error, PermissionError) or
-                    (isinstance(error, HTTPError) and error.code in (401, 403))):
+                    (isinstance(error, HTTPError) and error.code in (401, 403, 409))):
                 raise
             self._consecutive_errors += 1
             if self._consecutive_errors >= 3:
