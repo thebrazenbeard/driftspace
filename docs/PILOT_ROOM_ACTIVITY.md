@@ -136,8 +136,8 @@ it enforces the pilot's private-history boundary across parser revisions.
 Automatic `RoomWatch` fetches now count transient `OSError`/URL and HTTP
 transport failures in the same three-attempt budget as malformed feed data.
 The resulting pause text excludes network exception details and does not
-advance the session feed cursor. HTTP **401/403 authentication denials** are
-*not* downgraded into transient failures: they propagate to the authenticated
+advance the session feed cursor. HTTP **401/403 authentication denials** and local **PermissionError**
+access denials are *not* downgraded into transient failures: they propagate to the authenticated
 terminal owner to handle the revoked/forbidden credential. This wrapper does
 not itself reauthenticate or authorize a player. Re-enabling a paused
 watcher remains an explicit `watch on` operation.
