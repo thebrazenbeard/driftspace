@@ -18,7 +18,10 @@ _MAX_TEXT = 500
 
 def parse_activity_command(command: str) -> tuple[str, int] | None:
     """Intercept *all* listen/history verbs to prevent legacy history leakage."""
-    word, _, raw_count = command.strip().partition(" ")
+    parts = command.strip().split(None, 1)
+    if not parts:
+        return None
+    word, raw_count = parts[0], parts[1] if len(parts) == 2 else ""
     verb = word.casefold()
     if verb not in {"listen", "history"}:
         return None
