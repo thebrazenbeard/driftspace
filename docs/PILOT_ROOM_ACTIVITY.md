@@ -158,6 +158,11 @@ previously observed value changes or disappears. A backward revision or
 malformed value fails closed without advancing the feed cursor. Direct HTTP
 401/403 authorization denials and 409 host-channel epoch conflicts also
 invalidate cached session text before the exception propagates.
+The automatic `RoomWatch` wrapper also propagates HTTP 409 immediately, rather
+than treating a host channel-permission change as one of three transient
+network failures. The authenticated terminal owner must handle the retry or
+session-control consequence; this source-only wrapper does not decide that
+policy. HTTP 401/403 and local `PermissionError` remain immediate denials.
 
 A newly authorized crew-channel message may be displayed immediately from
 REALM's authenticated feed, but it is **never cached** in the terminal's
