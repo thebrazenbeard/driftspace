@@ -1,0 +1,42 @@
+# Disposable local-only tests. No real player worlds, model endpoints or secrets.
+name: Driftspace source regression
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: driftspace-source-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: ${{ matrix.os }} / Python source
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile sources
+        shell: bash
+        run: python -m compileall -q driftspace tests tools
+      - name: Standard library unit suite
+        shell: bash
+        run: python -m unittest discover -s tests -q
+      - name: Optimized assertions retained
+        shell: bash
+        run: python -O -m unittest discover -s tests -q
