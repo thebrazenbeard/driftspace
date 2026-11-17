@@ -146,3 +146,51 @@ watcher remains an explicit `watch on` operation.
 malformed, Unicode-whitespace, URL failure, 503, and 401/403 cases. This is
 a source-only pilot change. A successful hosted source suite does not prove
 that the separately deployed private VN2 Telnet bridge has incorporated it.
+
+## Host-owned channel revision and local history invalidation
+
+REALM main supplies a monotonic, host-issued `channel_revision` on each
+authenticated `/api/v1/feed` response. Its value changes when the host grants,
+alters or revokes that actor's private-group membership; this can happen with
+**zero newly visible events**. The private Driftspace activity reader now
+validates this revision and clears its session-local history whenever a
+previously observed value changes or disappears. A backward revision or
+malformed value fails closed without advancing the feed cursor. Direct HTTP
+401/403 authorization denials and 409 host-channel epoch conflicts also
+invalidate cached session text before the exception propagates.
+The automatic `RoomWatch` wrapper also propagates HTTP 409 immediately, rather
+than treating a host channel-permission change as one of three transient
+network failures. The authenticated terminal owner must handle the retry or
+session-control consequence; this source-only wrapper does not decide that
+policy. HTTP 401/403 and local `PermissionError` remain immediate denials.
+
+A newly authorized crew-channel message may be displayed immediately from
+REALM's authenticated feed, but it is **never cached** in the terminal's
+offline `history N` buffer. That is deliberate: `history N` has no live
+re-authorization callback, so caching crewchat would allow local replay
+after role revocation and before the next network poll. Other ordinary
+room activity remains session-only and is cleared on room transitions.
+
+A session that has seen a valid host-issued `channel_revision` rejects
+a later response missing the field: it clears cached text, preserves the last
+trusted revision, and does not advance the cursor. This prevents a silent
+modern-to-legacy downgrade even across repeated failed polls.
+
+A fresh legacy host session that has never supplied `channel_revision`
+continues to support only known public/room event kinds. A group-channel or unrecognized event from
+such a response is rejected *before display* and without cursor advancement.
+A modern authenticated feed may display future unknown event kinds, but
+only an explicit allowlist of known room/public kinds can enter offline
+`history N`; future private message types and case variants never inherit
+cached history rights by default. Missing or nontext event-kind evidence is
+rejected.
+The same client limitation remains: once material has already been printed
+to a terminal, a subsequent role change cannot retract those bytes.
+An idle or disconnected client cannot learn of revocation until another
+authenticated feed attempt or host-side connection termination. This is a
+local privacy hardening of the **source candidate**, not proof that the
+deployed VN2 terminal uses this reader or that public multiplayer is safe.
+
+`tests/test_room_channel_revision.py` covers ordinary/legacy room history,
+zero-event permission changes, non-retention of delivered crewchat, backward
+and malformed access revisions, and direct HTTP denial/conflict paths.

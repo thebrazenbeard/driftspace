@@ -112,6 +112,32 @@ class RoomWatchTests(unittest.TestCase):
                 self.assertEqual(0, watcher._consecutive_errors)
                 self.assertEqual(10, watcher.activity.cursor)
 
+    def test_channel_epoch_conflict_409_reaches_authenticated_terminal_owner(self):
+        # REALM can detect group membership changing after feed read and
+        # before HTTP bytes are sent. This is an authorization conflict, not
+        # an ordinary outage to retry silently three times.
+        activity = RoomActivity("Rylok", 2)
+        activity.listen(lambda _: {
+            "ok": True, "cursor": 3, "channel_revision": 4,
+            "events": [{"id": 3, "actor": "Visitor", "kind": "say",
+                        "text": "Visitor: previously received room words"}],
+        })
+        self.assertIn("previously received", activity.history(10))
+        calls = []
+        def changed(path):
+            calls.append(path)
+            raise HTTPError("http://127.0.0.1/private", 409,
+                            "host membership changed", {}, None)
+        watcher = RoomWatch(activity, changed)
+        with self.assertRaises(HTTPError) as denied:
+            watcher.poll()
+        self.assertEqual(409, denied.exception.code)
+        self.assertEqual(1, len(calls))
+        self.assertEqual(0, watcher._consecutive_errors)
+        self.assertTrue(watcher.enabled)
+        self.assertEqual(3, activity.cursor)
+        self.assertEqual("No recent activity in this room.", activity.history(10))
+
     def test_moving_rooms_clears_session_history_and_filters_own_echo(self):
         activity=RoomActivity("Rylok",4)
         responses=[
